@@ -27,13 +27,16 @@ export function createApp() {
   );
 
   // Rate limiting on API routes
+  const API_WINDOW_MS = 4 * 60 * 1000;
+  const API_WINDOW_MINUTES = API_WINDOW_MS / (60 * 1000);
   app.use(
     '/api/',
     rateLimit({
-      windowMs: 4 * 60 * 1000,
+      windowMs: API_WINDOW_MS,
       max: 720,
       standardHeaders: true,
       legacyHeaders: false,
+      message: { error: `You've been rate limited. Please wait ${API_WINDOW_MINUTES} minutes and try again.` },
     }),
   );
 

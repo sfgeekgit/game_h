@@ -109,7 +109,10 @@ export function GameView({ mode, onExit }: GameViewProps) {
           setPlayer(res.player);
         }
       } catch (err) {
-        if (!cancelled) setMessage('Failed to load area.');
+        if (!cancelled) {
+          const errorMsg = err instanceof Error ? err.message : 'Failed to load area.';
+          setMessage(errorMsg);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -156,7 +159,8 @@ export function GameView({ mode, onExit }: GameViewProps) {
             setTimeout(onExit, 1500);
           }
         } catch (err) {
-          setMessage('Move failed.');
+          const errorMsg = err instanceof Error ? err.message : 'Move failed.';
+          setMessage(errorMsg);
         } finally {
           movingRef.current = false;
         }
@@ -218,7 +222,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
   }, [mode, areaId, exited]);
 
   if (loading) return <div className="game-loading">Loading area...</div>;
-  if (!areaState || !player) return <div className="game-loading">Error loading area.</div>;
+  if (!areaState || !player) return <div className="game-loading">{message || 'Error loading area.'}</div>;
 
   const { camX, camY } = getCameraOrigin(player.x, player.y, areaState.width, areaState.height);
   const visibleTiles = getVisibleTiles(areaState, camX, camY);

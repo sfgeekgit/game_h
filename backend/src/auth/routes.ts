@@ -9,11 +9,14 @@ const BCRYPT_ROUNDS = 12;
 const MAX_PASSWORD_BYTES = 72; // bcrypt silently truncates beyond this
 
 // Stricter rate limit for auth endpoints (brute-force protection)
+const AUTH_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_WINDOW_MINUTES = AUTH_WINDOW_MS / (60 * 1000);
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: AUTH_WINDOW_MS,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: `Too many attempts. Please wait ${AUTH_WINDOW_MINUTES} minutes and try again.` },
 });
 
 const router = Router();
