@@ -1,0 +1,12 @@
+buttons:
+  play: 'Play'
+  settings: 'Settings'
+  logout: 'Log Out'
+  register: 'Create Account'
+labels:
+  points: 'Points'
+  level: 'Level'
+  player_id: 'Player ID'
+errors:
+  generic: 'Something went wrong. Please try again.'
+  connection: 'Unable to connect to the server.'

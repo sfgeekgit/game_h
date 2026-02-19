@@ -1,0 +1,30 @@
+{
+  "name": "game_h",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "test": "npm run test -w shared && npm run test -w backend && npm run test -w frontend",
+    "test:shared": "npm run test -w shared",
+    "test:backend": "npm run test -w backend",
+    "test:frontend": "npm run test -w frontend",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md,yaml}\""
+  },
+  "devDependencies": {
+    "eslint": "^9.14.0",
+    "typescript-eslint": "^8.14.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.6.0",
+    "globals": "^15.12.0"
+  }
+}

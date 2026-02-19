@@ -1,0 +1,265 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+/* ── Welcome / shell ── */
+
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.app-header h1 {
+  font-size: 2rem;
+  color: #e94560;
+  margin-bottom: 0.25rem;
+}
+
+.auth-status {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.welcome-intro {
+  text-align: center;
+  color: #bbb;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 340px;
+}
+
+.play-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 320px;
+}
+
+.play-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.1s;
+  width: 100%;
+  margin: 0;
+}
+
+.play-btn:active {
+  filter: brightness(0.85);
+}
+
+.play-btn-frontend {
+  background: #2563eb;
+}
+
+.play-btn-backend {
+  background: #16a34a;
+}
+
+.play-btn-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.play-btn-sub {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.controls-hint {
+  font-size: 0.78rem;
+  color: #666;
+  text-align: center;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #888;
+}
+
+.error {
+  color: #e94560;
+  padding: 1rem;
+}
+
+/* ── Game view ── */
+
+.game-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  min-height: 100vh;
+}
+
+.game-hud {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 520px;
+  flex-wrap: wrap;
+}
+
+.game-mode-badge {
+  background: #16213e;
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.game-coords {
+  flex: 1;
+  font-size: 0.75rem;
+  color: #888;
+  font-family: monospace;
+}
+
+.game-quit-btn {
+  background: #444;
+  color: #ddd;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+.game-quit-btn:active {
+  background: #666;
+}
+
+.game-message {
+  background: #f5c518;
+  color: #111;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.game-loading {
+  text-align: center;
+  padding: 3rem;
+  color: #888;
+}
+
+/* Viewport outer container */
+.game-viewport {
+  border: 2px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+  touch-action: none; /* prevent scroll while tapping tiles */
+}
+
+/* Individual tiles — base style; colour applied inline */
+.game-tile {
+  display: block;
+}
+
+/* Entity (player) */
+.game-entity {
+  pointer-events: none; /* tiles handle clicks */
+}
+
+/* ── D-Pad ── */
+
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 4px;
+  touch-action: none;
+}
+
+.dpad-btn {
+  background: #2a2a4a;
+  color: #ddd;
+  border: 1px solid #444;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dpad-btn:active,
+.dpad-btn:disabled {
+  background: #444;
+}
+
+.dpad-center {
+  background: #1a1a2e;
+  border-radius: 8px;
+}
+
+.game-hint {
+  font-size: 0.72rem;
+  color: #555;
+  text-align: center;
+  max-width: 320px;
+}
+
+/* ── Legacy components (kept for other pages) ── */
+
+.welcome,
+.player-status {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.welcome h2,
+.player-status h2 {
+  color: #e94560;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.subtitle {
+  font-style: italic;
+  color: #aaa;
+}
+
+button {
+  cursor: pointer;
+}
