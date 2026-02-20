@@ -1,6 +1,6 @@
 import session from 'express-session';
 import MySQLStoreFactory from 'express-mysql-session';
-import { getPool } from '../db/query.js';
+import { getPoolForSessionStore } from '../db/query.js';
 
 const MySQLStore = MySQLStoreFactory(session);
 
@@ -11,7 +11,7 @@ export function createSessionMiddleware() {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const store = new MySQLStore({ endConnectionOnClose: false }, getPool() as any);
+  const store = new MySQLStore({ endConnectionOnClose: false }, getPoolForSessionStore() as any);
 
   return session({
     name: 'game_h_session',

@@ -6,7 +6,7 @@ process.env.SESSION_SECRET = 'test-secret-for-vitest';
 
 // Mock DB query layer to prevent real MySQL connections
 vi.mock('../db/query.js', () => ({
-  getPool: vi.fn().mockReturnValue({}),
+  getPoolForSessionStore: vi.fn().mockReturnValue({}),
   query: vi.fn().mockResolvedValue([]),
   closePool: vi.fn().mockResolvedValue(undefined),
 }));

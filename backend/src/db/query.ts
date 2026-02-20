@@ -2,7 +2,12 @@ import mysql from 'mysql2/promise';
 
 let pool: mysql.Pool | null = null;
 
-export function getPool(): mysql.Pool {
+/**
+ * ⚠️ INTERNAL USE ONLY
+ * This function is ONLY for express-mysql-session store.
+ * DO NOT use this for SQL queries. Use query() instead.
+ */
+export function getPoolForSessionStore(): mysql.Pool {
   if (!pool) {
     pool = mysql.createPool({
       host: process.env.DB_HOST || '127.0.0.1',
@@ -17,8 +22,12 @@ export function getPool(): mysql.Pool {
   return pool;
 }
 
+/**
+ * Executes a parameterized SQL query.
+ * ⚠️ Use this for ALL SQL queries. DO NOT call pool.execute() directly.
+ */
 export async function query<T>(sql: string, params: unknown[] = []): Promise<T> {
-  const p = getPool();
+  const p = getPoolForSessionStore();
   const [rows] = await p.execute(sql, params);
   return rows as T;
 }
