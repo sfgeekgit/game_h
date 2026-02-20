@@ -52,13 +52,7 @@ function App() {
 
         <div className="play-buttons">
           <button className="play-btn play-btn-frontend" onClick={() => setScreen('frontend-game')}>
-            <span className="play-btn-title">Play (Frontend)</span>
-            <span className="play-btn-sub">Single-player · moves processed client-side</span>
-          </button>
-
-          <button className="play-btn play-btn-backend" onClick={() => setScreen('backend-game')}>
-            <span className="play-btn-title">Play (Backend)</span>
-            <span className="play-btn-sub">Multiplayer · moves processed server-side</span>
+            <span className="play-btn-title">Enter Town</span>
           </button>
         </div>
 

@@ -53,6 +53,21 @@ export function applyMove(state: AreaState, player: Entity, direction: Direction
     };
   }
 
+  // Check for entity collision at target tile
+  const occupied = state.entities.some(
+    (e) => e.id !== player.id && e.x === newX && e.y === newY,
+  );
+  if (occupied) {
+    return {
+      success: false,
+      reason: 'entity_collision',
+      newX: player.x,
+      newY: player.y,
+      newFacing,
+      exitedArea: false,
+    };
+  }
+
   return {
     success: true,
     newX,

@@ -5,7 +5,7 @@
  * This is the only place that bridges DB area records and the in-memory store.
  */
 import { townSquare } from '@game_h/shared';
-import type { MapDef, AreaState } from '@game_h/shared';
+import type { MapDef, AreaState, Entity } from '@game_h/shared';
 import { getPersistentArea, createArea } from '../db/helpers.js';
 import { isAreaLoaded, loadArea } from './store.js';
 
@@ -14,12 +14,22 @@ const MAP_REGISTRY: Record<string, MapDef> = {
 };
 
 function mapDefToAreaState(map: MapDef): AreaState {
+  const npcEntities: Entity[] = (map.npcs ?? []).map((npc) => ({
+    id: npc.id,
+    type: 'npc',
+    x: npc.x,
+    y: npc.y,
+    facing: npc.facing,
+    name: npc.name,
+    dialogueFile: npc.dialogueFile,
+  }));
+
   return {
     mapId: map.id,
     width: map.width,
     height: map.height,
     tiles: map.tiles,
-    entities: [], // player entities are added when players join
+    entities: npcEntities, // player entities are added when players join
   };
 }
 

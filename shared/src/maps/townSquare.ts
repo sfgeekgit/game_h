@@ -1,4 +1,4 @@
-import type { MapDef } from '../mapTypes.js';
+import type { MapDef, NpcDef } from '../mapTypes.js';
 
 // Shorthand builders
 const g = { type: 'grass' as const };
@@ -57,4 +57,9 @@ export const townSquare: MapDef = {
     // row 14 — second building bottom wall + exit tile
     [g, g, g, g, g, g, g, e, g, g, g, w, w, w, w, g, g, g, g, g],
   ],
+  npcs: [
+    { id: 'blacksmith', name: 'Gareth the Blacksmith', x: 3, y: 4, facing: 'south', dialogueFile: 'blacksmith' },
+    { id: 'elder', name: 'Elder Miriam', x: 6, y: 8, facing: 'west', dialogueFile: 'elder' },
+    { id: 'stranger', name: 'Hooded Stranger', x: 11, y: 5, facing: 'south', dialogueFile: 'stranger' },
+  ] satisfies NpcDef[],
 };

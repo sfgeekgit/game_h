@@ -1,0 +1,13 @@
+npc_id: elder
+name: "Elder Miriam"
+
+dialogue:
+  name: "I am Miriam, elder of this village."
+  who: "I have guided this TOWN for thirty years. Ask me of its HISTORY."
+  look: "An elderly woman with silver hair and keen eyes. She leans on a gnarled oak staff."
+  job: "I keep the peace and the old records. It is my duty to remember."
+  town: "Our town is small but proud. The BLACKSMITH forges fine steel, and the pond gives us water."
+  history: "This village was founded by settlers fleeing the darkness in the north. We have endured much."
+  news: "A STRANGER appeared by the pond a fortnight ago. He speaks little and watches much."
+  stranger: "I do not trust him. He asks too many questions about the DUNGEON beneath the old ruins."
+  bye: "Go with wisdom, child."

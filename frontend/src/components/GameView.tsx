@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { applyMove, townSquare } from '@game_h/shared';
+import { applyMove, directionDelta } from '@game_h/shared';
 import type { AreaState, Direction, Entity, MapDef, MoveResult } from '@game_h/shared';
 import { api } from '../api.js';
 import { DPad } from './DPad.js';
+import { DialogueWindow } from './DialogueWindow.js';
 
 interface GameViewProps {
   mode: 'frontend' | 'backend';
@@ -70,6 +71,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
   const [loading, setLoading] = useState(true);
   const [exited, setExited] = useState(false);
   const movingRef = useRef(false); // prevent move spam in backend mode
+  const [dialogueNpc, setDialogueNpc] = useState<Entity | null>(null);
 
   // Build a local area state for frontend mode from the map def
   const buildFrontendState = useCallback((map: MapDef): AreaState => ({
@@ -77,7 +79,15 @@ export function GameView({ mode, onExit }: GameViewProps) {
     width: map.width,
     height: map.height,
     tiles: map.tiles,
-    entities: [],
+    entities: (map.npcs ?? []).map((npc) => ({
+      id: npc.id,
+      type: 'npc' as const,
+      x: npc.x,
+      y: npc.y,
+      facing: npc.facing,
+      name: npc.name,
+      dialogueFile: npc.dialogueFile,
+    })),
   }), []);
 
   // Initialize
@@ -171,6 +181,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
 
   // Keyboard input
   useEffect(() => {
+    if (dialogueNpc) return; // disable movement while dialogue is open
     const keyMap: Record<string, Direction> = {
       ArrowUp: 'north',
       ArrowDown: 'south',
@@ -182,6 +193,16 @@ export function GameView({ mode, onExit }: GameViewProps) {
       d: 'east',
     };
     const onKey = (e: KeyboardEvent) => {
+      // Spacebar: interact with NPC the player is facing
+      if (e.key === ' ' && player && areaState) {
+        e.preventDefault();
+        const { dx, dy } = directionDelta(player.facing);
+        const npc = areaState.entities.find(
+          (en) => en.type === 'npc' && en.x === player.x + dx && en.y === player.y + dy,
+        );
+        if (npc) setDialogueNpc(npc);
+        return;
+      }
       const dir = keyMap[e.key];
       if (dir) {
         e.preventDefault();
@@ -190,20 +211,34 @@ export function GameView({ mode, onExit }: GameViewProps) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleMove]);
+  }, [handleMove, dialogueNpc, player, areaState]);
 
-  // Tile click — move if adjacent
+  // Tile click — move if adjacent, or interact with NPC
   const handleTileClick = useCallback(
     (mapCol: number, mapRow: number) => {
-      if (!player) return;
+      if (!player || !areaState || dialogueNpc) return;
       const dx = mapCol - player.x;
       const dy = mapRow - player.y;
       if (Math.abs(dx) + Math.abs(dy) !== 1) return; // only adjacent
+
+      // Check if there's an NPC at the clicked tile
+      const npc = areaState.entities.find(
+        (e) => e.type === 'npc' && e.x === mapCol && e.y === mapRow,
+      );
+      if (npc) {
+        // Face the NPC and open dialogue
+        const dir: Direction =
+          dx === 1 ? 'east' : dx === -1 ? 'west' : dy === -1 ? 'north' : 'south';
+        setPlayer((p) => p ? { ...p, facing: dir } : p);
+        setDialogueNpc(npc);
+        return;
+      }
+
       const dir: Direction =
         dx === 1 ? 'east' : dx === -1 ? 'west' : dy === -1 ? 'north' : 'south';
       void handleMove(dir);
     },
-    [player, handleMove],
+    [player, areaState, handleMove, dialogueNpc],
   );
 
   // Poll area state in backend mode every 3s to see other players
@@ -235,7 +270,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
   // Local player in frontend mode isn't in entities array; add it
   const localPlayer: Entity | null =
     mode === 'frontend' ? player : null;
-  const allVisiblePlayers = localPlayer
+  const allVisibleEntities = localPlayer
     ? [localPlayer, ...visibleEntities]
     : visibleEntities;
 
@@ -291,27 +326,37 @@ export function GameView({ mode, onExit }: GameViewProps) {
         </div>
 
         {/* Entity layer — absolutely positioned over the grid */}
-        {allVisiblePlayers.map((entity) => {
+        {allVisibleEntities.map((entity) => {
           const viewX = (entity.x - camX) * TILE_SIZE;
           const viewY = (entity.y - camY) * TILE_SIZE;
           const isMe = entity.id === player.id || (mode === 'frontend' && entity.id === 'local');
+          const isNpc = entity.type === 'npc';
           const facing = entity.facing ?? 'south';
           const fo = FACING_OFFSET[facing];
+
+          // Color: red = me, blue = other player, green = NPC
+          const bgColor = isNpc ? '#2d6a4f' : isMe ? '#e63946' : '#457b9d';
+
           return (
             <div
               key={entity.id}
-              className="game-entity game-player"
+              className={`game-entity ${isNpc ? 'game-npc' : 'game-player'}`}
               style={{
                 position: 'absolute',
                 left: viewX,
                 top: viewY,
                 width: TILE_SIZE,
                 height: TILE_SIZE,
-                backgroundColor: isMe ? '#e63946' : '#457b9d',
-                borderRadius: 4,
+                backgroundColor: bgColor,
+                borderRadius: isNpc ? 8 : 4,
                 boxSizing: 'border-box',
                 zIndex: 10,
+                cursor: isNpc ? 'pointer' : undefined,
               }}
+              onClick={isNpc ? (e) => {
+                e.stopPropagation();
+                handleTileClick(entity.x, entity.y);
+              } : undefined}
             >
               {/* Facing indicator */}
               <div
@@ -325,17 +370,45 @@ export function GameView({ mode, onExit }: GameViewProps) {
                   borderRadius: 2,
                 }}
               />
+              {/* NPC name label */}
+              {isNpc && entity.name && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -16,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    whiteSpace: 'nowrap',
+                    fontSize: 10,
+                    color: '#c8a96e',
+                    fontWeight: 'bold',
+                    textShadow: '0 0 3px #000, 0 0 3px #000',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {entity.name}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
       {/* D-pad for mobile */}
-      <DPad onMove={(dir) => void handleMove(dir)} disabled={exited} />
+      <DPad onMove={(dir) => void handleMove(dir)} disabled={exited || !!dialogueNpc} />
 
       <div className="game-hint">
-        WASD / arrows or tap adjacent tile to move · Exit tile glows yellow
+        WASD / arrows to move · Space / click NPC to talk · Exit tile glows yellow
       </div>
+
+      {/* Dialogue window */}
+      {dialogueNpc && (
+        <DialogueWindow
+          npcId={dialogueNpc.dialogueFile ?? dialogueNpc.id}
+          npcName={dialogueNpc.name ?? 'Unknown'}
+          onClose={() => setDialogueNpc(null)}
+        />
+      )}
     </div>
   );
 }

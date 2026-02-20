@@ -1,7 +1,7 @@
 import { createApp } from './app.js';
 import { initializeDatabase } from './db/schema.js';
 
-const PORT = parseInt(process.env.PORT || '3003');
+const PORT = parseInt(process.env.PORT || '3002');
 
 async function main() {
   await initializeDatabase();

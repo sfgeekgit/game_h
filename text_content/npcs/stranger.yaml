@@ -1,0 +1,16 @@
+npc_id: stranger
+name: "Hooded Stranger"
+
+fallbacks:
+  - "..."
+  - "That is not your concern."
+  - "You ask too many questions."
+
+dialogue:
+  name: "Names have power. You may call me... a traveler."
+  who: "I am no one of consequence. Yet."
+  look: "A tall figure draped in a dark cloak. Only pale eyes are visible beneath the hood."
+  darkness: "The DARKNESS stirs in the north. Something ancient awakens beneath the ruins."
+  quest: "If you seek purpose, find the silver SWORD. It was forged to banish the darkness."
+  secret: "There is a hidden passage beneath the old building. But you did not hear that from me."
+  bye: "We shall meet again. Of that I am certain."

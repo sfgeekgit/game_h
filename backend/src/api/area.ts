@@ -1,11 +1,19 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { readFile } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
 import { applyMove } from '@game_h/shared';
 import type { Direction, Entity } from '@game_h/shared';
 import { getOrCreatePersistentArea, TOWN_SQUARE_DEF_ID, TOWN_SQUARE_MAP_ID, getMapDef } from '../area/manager.js';
 import { withAreaLock, readAreaState, findPlayerEntity } from '../area/store.js';
 import { updatePlayerPosition } from '../db/helpers.js';
 import { townSquare } from '@game_h/shared';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const NPC_DIR = join(__dirname, '../../../text_content/npcs');
+const FALLBACKS_PATH = join(__dirname, '../../../text_content/dialogue_fallbacks.yaml');
 
 const router = Router();
 
@@ -214,6 +222,39 @@ router.post('/exit', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Area exit error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/area/npc/:npcId/dialogue
+ * Returns the NPC's dialogue data (parsed YAML) + generic fallbacks.
+ */
+router.get('/npc/:npcId/dialogue', async (req: Request, res: Response) => {
+  try {
+    const npcId = String(req.params.npcId);
+
+    // Only allow alphanumeric + underscore/hyphen IDs
+    if (!/^[a-zA-Z0-9_-]+$/.test(npcId)) {
+      res.status(400).json({ error: 'Invalid NPC ID' });
+      return;
+    }
+
+    const npcPath = join(NPC_DIR, `${npcId}.yaml`);
+    const [npcContent, fallbacksContent] = await Promise.all([
+      readFile(npcPath, 'utf-8'),
+      readFile(FALLBACKS_PATH, 'utf-8'),
+    ]);
+    const npcData = yaml.load(npcContent);
+    const fallbacks = yaml.load(fallbacksContent);
+
+    res.json({ npcData, fallbacks });
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      res.status(404).json({ error: 'NPC dialogue not found' });
+      return;
+    }
+    console.error('NPC dialogue error:', err);
+    res.status(500).json({ error: 'Failed to load NPC dialogue' });
   }
 });
 

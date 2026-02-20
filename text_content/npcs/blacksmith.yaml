@@ -1,0 +1,18 @@
+npc_id: blacksmith
+name: "Gareth the Blacksmith"
+
+fallbacks:
+  - "That's not my trade, friend."
+  - "Ask me about smithing, not nonsense."
+  - "I work with metal, not riddles."
+
+dialogue:
+  name: "My name is Gareth."
+  who: "I am the village blacksmith. Ask me about the SWORD."
+  look: "A burly man with soot-stained hands and a leather apron. His eyes gleam with pride."
+  job: "I forge weapons and armor for the townsfolk. My best work is the SWORD."
+  sword: "I forged a silver sword for the king himself. But it was lost in the DUNGEON."
+  dungeon: "The dungeon lies to the north, beyond the forest. You'll need a KEY to enter."
+  key: "The ELDER keeps the old iron key. She may part with it if you prove worthy."
+  news: "Strange folk have been seen near the pond at night. A STRANGER, cloaked in shadow."
+  bye: "Fare thee well, traveler. May thy blade stay sharp."

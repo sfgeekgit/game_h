@@ -107,4 +107,30 @@ describe('applyMove — blocked cases', () => {
     expect(result.success).toBe(false);
     expect(result.reason).toBe('out_of_bounds');
   });
+
+  it('blocked by another entity', () => {
+    const stateWithNpc = {
+      ...simpleMap,
+      entities: [
+        { id: 'npc1', type: 'npc' as const, x: 1, y: 0, facing: 'south' as const },
+      ],
+    };
+    const result = applyMove(stateWithNpc, makePlayer(0, 0), 'east');
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('entity_collision');
+    expect(result.newX).toBe(0);
+    expect(result.newY).toBe(0);
+    expect(result.newFacing).toBe('east');
+  });
+
+  it('does not collide with self', () => {
+    const p = makePlayer(0, 0);
+    const stateWithSelf = {
+      ...simpleMap,
+      entities: [p],
+    };
+    const result = applyMove(stateWithSelf, p, 'east');
+    expect(result.success).toBe(true);
+    expect(result.newX).toBe(1);
+  });
 });

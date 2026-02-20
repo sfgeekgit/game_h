@@ -26,19 +26,13 @@ describe('App — welcome screen', () => {
     });
   });
 
-  it('shows Play (Frontend) button', async () => {
+  it('shows Enter Town button', async () => {
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByText('Play (Frontend)')).toBeInTheDocument();
+      expect(screen.getByText('Enter Town')).toBeInTheDocument();
     });
   });
 
-  it('shows Play (Backend) button', async () => {
-    render(<App />);
-    await waitFor(() => {
-      expect(screen.getByText('Play (Backend)')).toBeInTheDocument();
-    });
-  });
 
   it('shows anonymous player status', async () => {
     render(<App />);

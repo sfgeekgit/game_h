@@ -64,11 +64,14 @@ cp /home/OLD_GAME/.gitignore /home/NEW_GAME/
 ```bash
 cd /home/NEW_GAME
 
-# Find all variations
+# Find all variations of the old game name
 grep -r 'OLD_GAME' . --exclude-dir=node_modules --exclude-dir=.git
 grep -r 'old.game' . --exclude-dir=node_modules --exclude-dir=.git
 grep -r 'OldGame' . --exclude-dir=node_modules --exclude-dir=.git
 grep -r 'Old Game' . --exclude-dir=node_modules --exclude-dir=.git
+
+# IMPORTANT: Also search for the old port number (not caught by name grep)
+grep -r 'OLD_PORT' . --exclude-dir=node_modules --exclude-dir=.git --include='*.ts' --include='*.json'
 
 # Replace in each file found
 ```
@@ -78,6 +81,7 @@ grep -r 'Old Game' . --exclude-dir=node_modules --exclude-dir=.git
 ### Frontend
 - `frontend/public/manifest.json` - "name" and "short_name" fields
 - `frontend/index.html` - `<title>` tag
+- `frontend/vite.config.ts` - `base` path AND proxy target port (won't be caught by name grep — must update port manually)
 - `frontend/dist/manifest.json` - Same (if dist exists)
 - `frontend/dist/index.html` - Same (if dist exists)
 
@@ -298,8 +302,9 @@ Based on past migrations:
 4. ❌ Not rebuilding frontend after changes
 5. ❌ Forgetting to update cookie name (breaks sessions)
 6. ❌ Wrong port in server.ts default
-7. ❌ Not updating SERVER.md completely
-8. ❌ Declaring done without comprehensive grep check
+7. ❌ Wrong port in vite.config.ts proxy target (not caught by name grep — must check manually)
+8. ❌ Not updating SERVER.md completely
+9. ❌ Declaring done without comprehensive grep check
 
 **Solution:** Use grep extensively. Search for every variation of the old game name.
 
