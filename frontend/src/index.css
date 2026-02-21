@@ -95,6 +95,18 @@ body {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.multiplayer-link {
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.multiplayer-link:hover {
+  color: #bbb;
+}
+
 .controls-hint {
   font-size: 0.78rem;
   color: #666;

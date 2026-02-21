@@ -44,6 +44,19 @@ function useTileSize(): number {
   return tileSize;
 }
 
+const MAX_CLICK_DISTANCE = 3;
+
+/** Given player position and a clicked tile, return the move direction or null. */
+export function clickToDirection(
+  playerX: number, playerY: number, clickX: number, clickY: number,
+): Direction | null {
+  const dx = clickX - playerX;
+  const dy = clickY - playerY;
+  const dist = Math.abs(dx) + Math.abs(dy);
+  if (dist === 0 || dist > MAX_CLICK_DISTANCE || (dx !== 0 && dy !== 0)) return null;
+  return dx > 0 ? 'east' : dx < 0 ? 'west' : dy < 0 ? 'north' : 'south';
+}
+
 function clamp(val: number, min: number, max: number) {
   return Math.max(min, Math.min(max, val));
 }
@@ -193,6 +206,16 @@ export function GameView({ mode, onExit }: GameViewProps) {
     [areaState, player, exited, mode, onExit],
   );
 
+  // Interact with NPC the player is facing
+  const handleAction = useCallback(() => {
+    if (!player || !areaState || dialogueNpc) return;
+    const { dx, dy } = directionDelta(player.facing);
+    const npc = areaState.entities.find(
+      (en) => en.type === 'npc' && en.x === player.x + dx && en.y === player.y + dy,
+    );
+    if (npc) setDialogueNpc(npc);
+  }, [player, areaState, dialogueNpc]);
+
   // Keyboard input
   useEffect(() => {
     if (dialogueNpc) return; // disable movement while dialogue is open
@@ -207,14 +230,9 @@ export function GameView({ mode, onExit }: GameViewProps) {
       d: 'east',
     };
     const onKey = (e: KeyboardEvent) => {
-      // Spacebar: interact with NPC the player is facing
-      if (e.key === ' ' && player && areaState) {
+      if (e.key === ' ') {
         e.preventDefault();
-        const { dx, dy } = directionDelta(player.facing);
-        const npc = areaState.entities.find(
-          (en) => en.type === 'npc' && en.x === player.x + dx && en.y === player.y + dy,
-        );
-        if (npc) setDialogueNpc(npc);
+        handleAction();
         return;
       }
       const dir = keyMap[e.key];
@@ -225,31 +243,25 @@ export function GameView({ mode, onExit }: GameViewProps) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleMove, dialogueNpc, player, areaState]);
+  }, [handleMove, handleAction, dialogueNpc]);
 
   // Tile click — move if adjacent, or interact with NPC
   const handleTileClick = useCallback(
     (mapCol: number, mapRow: number) => {
       if (!player || !areaState || dialogueNpc) return;
-      const dx = mapCol - player.x;
-      const dy = mapRow - player.y;
-      if (Math.abs(dx) + Math.abs(dy) !== 1) return; // only adjacent
+      const dir = clickToDirection(player.x, player.y, mapCol, mapRow);
+      if (!dir) return;
 
-      // Check if there's an NPC at the clicked tile
+      // Check if there's an adjacent NPC in that direction
+      const { dx: ndx, dy: ndy } = directionDelta(dir);
       const npc = areaState.entities.find(
-        (e) => e.type === 'npc' && e.x === mapCol && e.y === mapRow,
+        (e) => e.type === 'npc' && e.x === player.x + ndx && e.y === player.y + ndy,
       );
       if (npc) {
-        // Face the NPC and open dialogue
-        const dir: Direction =
-          dx === 1 ? 'east' : dx === -1 ? 'west' : dy === -1 ? 'north' : 'south';
         setPlayer((p) => p ? { ...p, facing: dir } : p);
         setDialogueNpc(npc);
         return;
       }
-
-      const dir: Direction =
-        dx === 1 ? 'east' : dx === -1 ? 'west' : dy === -1 ? 'north' : 'south';
       void handleMove(dir);
     },
     [player, areaState, handleMove, dialogueNpc],
@@ -412,7 +424,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
       </div>
 
       {/* D-pad for mobile */}
-      <DPad onMove={(dir) => void handleMove(dir)} disabled={exited || !!dialogueNpc} />
+      <DPad onMove={(dir) => void handleMove(dir)} onAction={handleAction} disabled={exited || !!dialogueNpc} />
 
       <div className="game-hint">
         WASD / arrows to move · Space / click NPC to talk · Exit tile glows yellow

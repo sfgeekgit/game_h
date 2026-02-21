@@ -54,6 +54,9 @@ function App() {
           <button className="play-btn play-btn-frontend" onClick={() => setScreen('frontend-game')}>
             <span className="play-btn-title">Enter Town</span>
           </button>
+          <a className="multiplayer-link" onClick={() => setScreen('backend-game')}>
+            Multiplayer Mode — Backend Town
+          </a>
         </div>
 
         <p className="controls-hint">
