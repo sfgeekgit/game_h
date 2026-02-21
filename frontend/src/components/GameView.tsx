@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { applyMove, directionDelta } from '@game_h/shared';
 import type { AreaState, Direction, Entity, MapDef, MoveResult } from '@game_h/shared';
 import { api } from '../api.js';
@@ -13,7 +13,8 @@ interface GameViewProps {
 // Viewport dimensions in tiles (odd numbers keep player near center)
 const VIEWPORT_W = 11;
 const VIEWPORT_H = 9;
-const TILE_SIZE = 44; // px — comfortable tap target on mobile
+const MAX_TILE_SIZE = 44; // px — ideal tap target on mobile
+const APP_PADDING = 32; // 1rem padding on each side
 
 const TILE_COLORS: Record<string, string> = {
   grass: '#4a7c3f',
@@ -23,12 +24,25 @@ const TILE_COLORS: Record<string, string> = {
   exit: '#f5c518',
 };
 
-const FACING_OFFSET: Record<Direction, { top: number; left: number; w: number; h: number }> = {
-  north: { top: 0, left: 4, w: TILE_SIZE - 8, h: 6 },
-  south: { top: TILE_SIZE - 6, left: 4, w: TILE_SIZE - 8, h: 6 },
-  east: { top: 4, left: TILE_SIZE - 6, w: 6, h: TILE_SIZE - 8 },
-  west: { top: 4, left: 0, w: 6, h: TILE_SIZE - 8 },
-};
+function getFacingOffset(tileSize: number): Record<Direction, { top: number; left: number; w: number; h: number }> {
+  return {
+    north: { top: 0, left: 4, w: tileSize - 8, h: 6 },
+    south: { top: tileSize - 6, left: 4, w: tileSize - 8, h: 6 },
+    east: { top: 4, left: tileSize - 6, w: 6, h: tileSize - 8 },
+    west: { top: 4, left: 0, w: 6, h: tileSize - 8 },
+  };
+}
+
+function useTileSize(): number {
+  const calc = () => Math.min(MAX_TILE_SIZE, Math.floor((window.innerWidth - APP_PADDING) / VIEWPORT_W));
+  const [tileSize, setTileSize] = useState(calc);
+  useEffect(() => {
+    const onResize = () => setTileSize(calc());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return tileSize;
+}
 
 function clamp(val: number, min: number, max: number) {
   return Math.max(min, Math.min(max, val));
@@ -256,6 +270,9 @@ export function GameView({ mode, onExit }: GameViewProps) {
     return () => clearInterval(id);
   }, [mode, areaId, exited]);
 
+  const tileSize = useTileSize();
+  const facingOffset = useMemo(() => getFacingOffset(tileSize), [tileSize]);
+
   if (loading) return <div className="game-loading">Loading area...</div>;
   if (!areaState || !player) return <div className="game-loading">{message || 'Error loading area.'}</div>;
 
@@ -274,8 +291,8 @@ export function GameView({ mode, onExit }: GameViewProps) {
     ? [localPlayer, ...visibleEntities]
     : visibleEntities;
 
-  const viewportPx = TILE_SIZE * VIEWPORT_W;
-  const viewportPyH = TILE_SIZE * VIEWPORT_H;
+  const viewportPx = tileSize * VIEWPORT_W;
+  const viewportPyH = tileSize * VIEWPORT_H;
 
   return (
     <div className="game-view">
@@ -301,8 +318,8 @@ export function GameView({ mode, onExit }: GameViewProps) {
           className="game-tile-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${VIEWPORT_W}, ${TILE_SIZE}px)`,
-            gridTemplateRows: `repeat(${VIEWPORT_H}, ${TILE_SIZE}px)`,
+            gridTemplateColumns: `repeat(${VIEWPORT_W}, ${tileSize}px)`,
+            gridTemplateRows: `repeat(${VIEWPORT_H}, ${tileSize}px)`,
             position: 'absolute',
             top: 0,
             left: 0,
@@ -313,8 +330,8 @@ export function GameView({ mode, onExit }: GameViewProps) {
               key={`${col}-${row}`}
               className={`game-tile game-tile-${type}`}
               style={{
-                width: TILE_SIZE,
-                height: TILE_SIZE,
+                width: tileSize,
+                height: tileSize,
                 backgroundColor: TILE_COLORS[type] ?? '#333',
                 cursor: 'pointer',
                 boxSizing: 'border-box',
@@ -327,12 +344,12 @@ export function GameView({ mode, onExit }: GameViewProps) {
 
         {/* Entity layer — absolutely positioned over the grid */}
         {allVisibleEntities.map((entity) => {
-          const viewX = (entity.x - camX) * TILE_SIZE;
-          const viewY = (entity.y - camY) * TILE_SIZE;
+          const viewX = (entity.x - camX) * tileSize;
+          const viewY = (entity.y - camY) * tileSize;
           const isMe = entity.id === player.id || (mode === 'frontend' && entity.id === 'local');
           const isNpc = entity.type === 'npc';
           const facing = entity.facing ?? 'south';
-          const fo = FACING_OFFSET[facing];
+          const fo = facingOffset[facing];
 
           // Color: red = me, blue = other player, green = NPC
           const bgColor = isNpc ? '#2d6a4f' : isMe ? '#e63946' : '#457b9d';
@@ -345,8 +362,8 @@ export function GameView({ mode, onExit }: GameViewProps) {
                 position: 'absolute',
                 left: viewX,
                 top: viewY,
-                width: TILE_SIZE,
-                height: TILE_SIZE,
+                width: tileSize,
+                height: tileSize,
                 backgroundColor: bgColor,
                 borderRadius: isNpc ? 8 : 4,
                 boxSizing: 'border-box',
