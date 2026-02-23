@@ -68,11 +68,13 @@ export function applyMove(state: AreaState, player: Entity, direction: Direction
     };
   }
 
+  const exitedArea = tile.type === 'exit';
   return {
     success: true,
     newX,
     newY,
     newFacing,
-    exitedArea: tile.type === 'exit',
+    exitedArea,
+    exitTarget: exitedArea ? (tile.exitTarget ?? 'welcome') : undefined,
   };
 }

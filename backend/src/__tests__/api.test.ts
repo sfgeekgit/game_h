@@ -91,6 +91,7 @@ vi.mock('../area/manager.js', async () => {
     getMapDef: vi.fn().mockReturnValue(townSquare),
     TOWN_SQUARE_DEF_ID: 1,
     TOWN_SQUARE_MAP_ID: 'town_square',
+    MAP_AREA_DEF_IDS: { town_square: 1, tavern: 2, marketplace: 3, forest_path: 4, castle_gates: 5, docks: 6, herbalist_garden: 7, graveyard: 8, temple: 9, dungeon_entrance: 10 },
   };
 });
 

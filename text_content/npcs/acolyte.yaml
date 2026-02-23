@@ -1,0 +1,25 @@
+npc_id: acolyte
+name: "Petra the Acolyte"
+
+fallbacks:
+  - "I'm still learning. Father Aldwyn knows more."
+  - "I don't know about that. Perhaps a more senior priest would help."
+  - "I'm sorry, that's beyond my understanding yet."
+
+dialogue:
+  name: "I am Petra, acolyte of the Temple of Virtue."
+  who: "I serve Father Aldwyn and study the eight virtues. Still much to learn."
+  study: "I have studied here five years. The VIRTUES are complex but deeply beautiful."
+  virtues: "I am working on Compassion and Humility. They are the hardest for me to embody."
+  virtue: "I am working on Compassion and Humility. They are the hardest for me to embody."
+  compassion: "Feeling another's pain as your own. It is easier to say than to truly practice."
+  humility: "Knowing your own limits and accepting help. I struggle with asking for help."
+  shrine: "The shrine is south of the main hall. It glows softly when the seal is strong."
+  seal: "Father says the seal is weaker than it has been in a century. It frightens me."
+  dungeon: "I've never been below. Father Aldwyn forbids it. He says the danger is too great."
+  danger: "Something stirs in the dungeon. I can hear it sometimes at night. Deep RUMBLING."
+  rumbling: "Like breathing. Like something vast and ancient slowly waking up."
+  prayer: "I pray every day that the seals hold. That virtue and goodness prevail."
+  castle: "Guard Captain Roland is a good man. He's worried about the lord too."
+  forest: "A pilgrim came through recently — Brother Oswald. He seemed lost and frightened."
+  bye: "May the virtues guide you. I'll pray for your safety on the road ahead."

@@ -94,10 +94,12 @@ export function GameView({ mode, onExit }: GameViewProps) {
   const [areaState, setAreaState] = useState<AreaState | null>(null);
   const [player, setPlayer] = useState<Entity | null>(null);
   const [areaId, setAreaId] = useState<number | null>(null);
+  const [currentMapId, setCurrentMapId] = useState<string>('town_square');
+  const [mapName, setMapName] = useState<string>('Town Square');
   const [message, setMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [exited, setExited] = useState(false);
-  const movingRef = useRef(false); // prevent move spam in backend mode
+  const [transitioning, setTransitioning] = useState(false);
+  const movingRef = useRef(false);
   const [dialogueNpc, setDialogueNpc] = useState<Entity | null>(null);
 
   // Build a local area state for frontend mode from the map def
@@ -117,6 +119,23 @@ export function GameView({ mode, onExit }: GameViewProps) {
     })),
   }), []);
 
+  // Load a specific map (frontend mode)
+  const loadFrontendMap = useCallback(async (mapId: string) => {
+    const map = await api.get<MapDef>(`/area/map?mapId=${mapId}`);
+    const state = buildFrontendState(map);
+    const p: Entity = {
+      id: 'local',
+      type: 'player',
+      x: map.spawnX,
+      y: map.spawnY,
+      facing: 'south',
+    };
+    setAreaState(state);
+    setPlayer(p);
+    setCurrentMapId(mapId);
+    setMapName(map.name);
+  }, [buildFrontendState]);
+
   // Initialize
   useEffect(() => {
     let cancelled = false;
@@ -124,8 +143,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
     async function init() {
       try {
         if (mode === 'frontend') {
-          // Load map from backend; run movement locally
-          const map = await api.get<MapDef>('/area/map');
+          const map = await api.get<MapDef>('/area/map?mapId=town_square');
           if (cancelled) return;
           const state = buildFrontendState(map);
           const p: Entity = {
@@ -137,13 +155,16 @@ export function GameView({ mode, onExit }: GameViewProps) {
           };
           setAreaState(state);
           setPlayer(p);
+          setCurrentMapId(map.id);
+          setMapName(map.name);
         } else {
-          // Join the backend area
-          const res = await api.post<{ areaId: number; state: AreaState; player: Entity }>('/area/join');
+          const res = await api.post<{ areaId: number; state: AreaState; player: Entity }>('/area/join', { mapId: 'town_square' });
           if (cancelled) return;
           setAreaId(res.areaId);
           setAreaState(res.state);
           setPlayer(res.player);
+          setCurrentMapId(res.state.mapId);
+          setMapName(res.state.mapId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
         }
       } catch (err) {
         if (!cancelled) {
@@ -159,27 +180,55 @@ export function GameView({ mode, onExit }: GameViewProps) {
     return () => { cancelled = true; };
   }, [mode, buildFrontendState]);
 
+  // Handle transitioning to a new map
+  const handleMapTransition = useCallback(async (exitTarget: string) => {
+    if (exitTarget === 'welcome') {
+      onExit();
+      return;
+    }
+
+    setTransitioning(true);
+    setMessage(`Traveling to ${exitTarget.replace(/_/g, ' ')}...`);
+
+    try {
+      if (mode === 'frontend') {
+        // Record exit position
+        if (player && currentMapId) {
+          api.post('/area/exit', { x: player.x, y: player.y, mapId: currentMapId }).catch(console.error);
+        }
+        await loadFrontendMap(exitTarget);
+        setMessage('');
+      } else {
+        // Backend: join the new area (server handles removing from old area)
+        const res = await api.post<{ areaId: number; state: AreaState; player: Entity }>('/area/join', { mapId: exitTarget });
+        setAreaId(res.areaId);
+        setAreaState(res.state);
+        setPlayer(res.player);
+        setCurrentMapId(res.state.mapId);
+        setMapName(res.state.mapId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+        setMessage('');
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to travel.';
+      setMessage(errorMsg);
+    } finally {
+      setTransitioning(false);
+    }
+  }, [mode, player, currentMapId, onExit, loadFrontendMap]);
+
   const handleMove = useCallback(
     async (direction: Direction) => {
-      if (!areaState || !player || exited) return;
+      if (!areaState || !player || transitioning) return;
 
       if (mode === 'frontend') {
-        // Client-side movement
         const result = applyMove(areaState, player, direction);
         setPlayer((p) =>
           p ? { ...p, x: result.newX, y: result.newY, facing: result.newFacing } : p,
         );
-        if (result.exitedArea) {
-          // Report position to backend and exit
-          setExited(true);
-          setMessage('You found the exit!');
-          api
-            .post('/area/exit', { x: result.newX, y: result.newY, areaDefId: 1 })
-            .catch(console.error);
-          setTimeout(onExit, 1500);
+        if (result.exitedArea && result.exitTarget) {
+          void handleMapTransition(result.exitTarget);
         }
       } else {
-        // Backend movement
         if (movingRef.current) return;
         movingRef.current = true;
         try {
@@ -190,10 +239,8 @@ export function GameView({ mode, onExit }: GameViewProps) {
           }>('/area/move', { direction });
           setAreaState(res.state);
           if (res.player) setPlayer(res.player);
-          if (res.moveResult.exitedArea) {
-            setExited(true);
-            setMessage('You found the exit!');
-            setTimeout(onExit, 1500);
+          if (res.moveResult.exitedArea && res.moveResult.exitTarget) {
+            void handleMapTransition(res.moveResult.exitTarget);
           }
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'Move failed.';
@@ -203,7 +250,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
         }
       }
     },
-    [areaState, player, exited, mode, onExit],
+    [areaState, player, transitioning, mode, handleMapTransition],
   );
 
   // Interact with NPC the player is facing
@@ -218,7 +265,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
 
   // Keyboard input
   useEffect(() => {
-    if (dialogueNpc) return; // disable movement while dialogue is open
+    if (dialogueNpc) return;
     const keyMap: Record<string, Direction> = {
       ArrowUp: 'north',
       ArrowDown: 'south',
@@ -252,7 +299,6 @@ export function GameView({ mode, onExit }: GameViewProps) {
       const dir = clickToDirection(player.x, player.y, mapCol, mapRow);
       if (!dir) return;
 
-      // Check if there's an adjacent NPC in that direction
       const { dx: ndx, dy: ndy } = directionDelta(dir);
       const npc = areaState.entities.find(
         (e) => e.type === 'npc' && e.x === player.x + ndx && e.y === player.y + ndy,
@@ -269,7 +315,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
 
   // Poll area state in backend mode every 3s to see other players
   useEffect(() => {
-    if (mode !== 'backend' || !areaId || exited) return;
+    if (mode !== 'backend' || !areaId || transitioning) return;
     const id = setInterval(async () => {
       try {
         const res = await api.get<{ state: AreaState; player: Entity | null }>('/area/state');
@@ -280,7 +326,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
       }
     }, 3000);
     return () => clearInterval(id);
-  }, [mode, areaId, exited]);
+  }, [mode, areaId, transitioning]);
 
   const tileSize = useTileSize();
   const facingOffset = useMemo(() => getFacingOffset(tileSize), [tileSize]);
@@ -291,14 +337,11 @@ export function GameView({ mode, onExit }: GameViewProps) {
   const { camX, camY } = getCameraOrigin(player.x, player.y, areaState.width, areaState.height);
   const visibleTiles = getVisibleTiles(areaState, camX, camY);
 
-  // Entities visible in viewport
   const visibleEntities = areaState.entities.filter(
     (e) =>
       e.x >= camX && e.x < camX + VIEWPORT_W && e.y >= camY && e.y < camY + VIEWPORT_H,
   );
-  // Local player in frontend mode isn't in entities array; add it
-  const localPlayer: Entity | null =
-    mode === 'frontend' ? player : null;
+  const localPlayer: Entity | null = mode === 'frontend' ? player : null;
   const allVisibleEntities = localPlayer
     ? [localPlayer, ...visibleEntities]
     : visibleEntities;
@@ -310,6 +353,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
     <div className="game-view">
       <div className="game-hud">
         <span className="game-mode-badge">{mode === 'frontend' ? 'Single-player' : 'Multiplayer'}</span>
+        <span className="game-map-name">{mapName}</span>
         <span className="game-coords">
           ({player.x}, {player.y}) facing {player.facing}
         </span>
@@ -354,7 +398,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
           ))}
         </div>
 
-        {/* Entity layer — absolutely positioned over the grid */}
+        {/* Entity layer */}
         {allVisibleEntities.map((entity) => {
           const viewX = (entity.x - camX) * tileSize;
           const viewY = (entity.y - camY) * tileSize;
@@ -363,7 +407,6 @@ export function GameView({ mode, onExit }: GameViewProps) {
           const facing = entity.facing ?? 'south';
           const fo = facingOffset[facing];
 
-          // Color: red = me, blue = other player, green = NPC
           const bgColor = isNpc ? '#2d6a4f' : isMe ? '#e63946' : '#457b9d';
 
           return (
@@ -424,10 +467,10 @@ export function GameView({ mode, onExit }: GameViewProps) {
       </div>
 
       {/* D-pad for mobile */}
-      <DPad onMove={(dir) => void handleMove(dir)} onAction={handleAction} disabled={exited || !!dialogueNpc} />
+      <DPad onMove={(dir) => void handleMove(dir)} onAction={handleAction} disabled={transitioning || !!dialogueNpc} />
 
       <div className="game-hint">
-        WASD / arrows to move · Space / click NPC to talk · Exit tile glows yellow
+        WASD / arrows to move · Space / click NPC to talk · Exit tiles glow yellow
       </div>
 
       {/* Dialogue window */}

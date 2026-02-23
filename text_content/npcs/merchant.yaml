@@ -1,0 +1,22 @@
+npc_id: merchant
+name: "Bram the Merchant"
+
+fallbacks:
+  - "I only deal in goods, not gossip."
+  - "Ask me about wares, not riddles."
+  - "That's not something I stock, friend."
+
+dialogue:
+  name: "Bram at your service! Best PRICES in the market!"
+  who: "I sell provisions, tools, and sundries. Whatever you need for your JOURNEY."
+  prices: "Fair prices for honest folk. Better than those DOCKS merchants, I say."
+  journey: "A long road ahead? Stock up on PROVISIONS first. You'll thank me."
+  provisions: "Dried meat, hardtack, waterskins. All a traveler needs."
+  goods: "I also trade in information. Ask me about any place in the realm."
+  castle: "The castle lies north. The GUARD may let you pass if you look respectable."
+  docks: "The eastern docks are rough. Watch your purse and your back."
+  forest: "Don't wander the FOREST alone at night. Strange things lurk there."
+  graveyard: "The graveyard north of the forest? Avoid it. Especially after dark."
+  creatures: "Wolves mostly. But some say worse things stalk the old cemetery paths."
+  marketplace: "Best market in the realm, if I do say so myself. Many fine stalls here."
+  bye: "Come back when you need supplies! Safe trading!"

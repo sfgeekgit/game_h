@@ -1,0 +1,22 @@
+npc_id: ranger
+name: "Erin the Ranger"
+
+fallbacks:
+  - "I track beasts, not gossip."
+  - "Speak plainly. I have no time for riddles."
+  - "I don't know about that. Ask someone in town."
+
+dialogue:
+  name: "I am Erin. I patrol these woods."
+  who: "A ranger of the realm. I keep the forest roads safe for travelers."
+  forest: "These woods are older than memory. Strange MAGIC lingers among the trees."
+  magic: "The trees whisper at night. The HERBALIST in the garden to the west knows more."
+  herbalist: "She lives in a cottage west of here. A healer and scholar of old nature magic."
+  danger: "The GRAVEYARD to the north is troubled. Something has disturbed the dead."
+  graveyard: "Do not approach the graveyard after dark. Strange shadows walk there."
+  tracks: "I found unusual tracks near the old pond. Large, clawed — not any beast I know."
+  creature: "I don't know what made them. Perhaps the DUNGEON has a new tenant."
+  path: "The road west leads to the herbalist's garden. East returns to the TOWN SQUARE."
+  patrol: "I walk this forest every day. Today feels different. Something is watching."
+  night: "Stay indoors tonight if you can. The forest is not safe after dark."
+  bye: "Keep to the path, traveler. The trees have eyes."

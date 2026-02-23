@@ -1,0 +1,22 @@
+npc_id: innkeeper
+name: "Marta the Innkeeper"
+
+fallbacks:
+  - "I only deal in beds and ale, friend."
+  - "Ask me about the inn, not riddles."
+  - "That's beyond my expertise. Have some ale instead."
+
+dialogue:
+  name: "I am Marta, keeper of The Rusty Flagon."
+  who: "I run this inn. Ask me about ROOMS, ALE, or what TRAVELERS have said."
+  inn: "The Rusty Flagon — finest inn in the realm. Hot meals, warm beds, cold ale."
+  rooms: "A warm bed awaits the weary traveler. Rest well before your journey."
+  ale: "Our ale comes from the monastery to the north. Strong as an ox, smooth as a river."
+  rumor: "A merchant arrived last night with strange CARGO from the east."
+  cargo: "He wouldn't say what it was. But it smelled of sulfur and glowed faintly."
+  traveler: "Many travelers pass through. The BARD can tell you more tales."
+  travelers: "Many travelers pass through. The BARD can tell you more tales."
+  bard: "Aldric? A fine singer. Though he drinks more than he earns."
+  news: "Strange times. The CASTLE gates have been shut for three days."
+  castle: "The lord is ill, they say. Or perhaps something darker is at work."
+  bye: "Safe travels, friend. May the road be kind."

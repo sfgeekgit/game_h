@@ -1,0 +1,27 @@
+npc_id: adventurer_ghost
+name: "Ghost of Sir Gareth"
+
+fallbacks:
+  - "The darkness... it takes everything..."
+  - "I cannot remember... only the cold..."
+  - "So long... I have been here so long..."
+
+dialogue:
+  name: "I... was Sir Gareth... a knight... I came here seeking glory..."
+  who: "A knight of the realm. I came to slay the Sleeper. I was a proud fool."
+  fool: "The SLEEPER cannot be slain. It can only be BOUND by the eight virtues."
+  bound: "The virtues working in concert. All eight SHRINES must be renewed."
+  shrines: "There are eight shrines, one per virtue. The main shrine is in the TEMPLE above."
+  shrine: "The shrine in the temple — begin there. The PRIEST knows the rites."
+  renewal: "Each shrine requires a true act of that virtue to renew. Not words. True acts."
+  virtues: "I lacked HUMILITY. I thought I could do it alone. That pride destroyed me."
+  virtue: "I lacked HUMILITY. I thought I could do it alone. That pride destroyed me."
+  humility: "Accept help. Work with others. That was my fatal flaw and my lesson."
+  alone: "You will need help. The PRIEST knows the rites. The HERBALIST knows the herbs."
+  warning: "The thing below shows you your deepest fear. Don't look at it directly."
+  fear: "Mine was failure. And in fearing failure, I brought it upon myself."
+  hope: "There is still hope. The realm has faced this darkness before and survived."
+  virtue_real: "Live virtuously — not for reward, but because it is right. That weakens the Sleeper."
+  keeper: "Grimwald is a good man. His family's sacrifice over seven generations is true HONOR."
+  temple: "Go back up to the TEMPLE. Speak with the priest. Begin the renewal of the seals."
+  bye: "Go... do what I could not... live with virtue... and perhaps I may finally rest..."

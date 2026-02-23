@@ -1,0 +1,25 @@
+npc_id: dungeon_keeper
+name: "Grimwald the Keeper"
+
+fallbacks:
+  - "This is no place for questions."
+  - "Turn back while you still can."
+  - "I have no answers. Only warnings."
+
+dialogue:
+  name: "Grimwald. I keep the dungeon. Or rather... I keep watch over it."
+  who: "My family has guarded this dungeon for seven generations. We don't go inside."
+  inside: "None who enter the DEEP come back unchanged. Some don't come back at all."
+  deep: "Below this chamber, things get darker. Much darker. You don't want to know."
+  prisoner: "There is one prisoner in the deepest cell. We call it the SLEEPER."
+  sleeper: "Ancient. Evil. Bound by the SEALS of virtue ages ago. Now it stirs."
+  seals: "The seals are weakening. I can feel it in my bones. The door shakes at night."
+  shaking: "Three nights ago it started. Something has been testing the lock from within."
+  lock: "The lock is bound by old virtue magic. Only the purest heart can reinforce it."
+  warning: "Whatever you do, don't go further down. Don't go deeper than this chamber."
+  chamber: "Stay here. Leave when you can. This place is not for the living."
+  priest: "If anyone can help, it is Father Aldwyn in the TEMPLE above. Go to him."
+  ghost: "The ghost of a knight wanders here. He tried to slay what cannot be slain."
+  knight: "He has been here longer than I have. Poor soul. He knows the truth of this place."
+  family: "Seven generations of my family have stood this watch. I pray I am not the last."
+  bye: "Turn back now. Please. For your own sake. This is not the adventure you seek."

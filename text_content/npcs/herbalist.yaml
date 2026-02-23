@@ -1,0 +1,24 @@
+npc_id: herbalist
+name: "Sylva the Herbalist"
+
+fallbacks:
+  - "I tend to plants and wounds, not idle talk."
+  - "Ask me about herbs or healing."
+  - "I don't know about such things. The forest is my domain."
+
+dialogue:
+  name: "I am Sylva. Herbalist and healer of the forest grove."
+  who: "I study plants and their properties. HEALING is my craft and my calling."
+  healing: "I can cure most ailments with the right HERB. What ails you?"
+  herb: "Moonpetal cures fever. Thornroot stops bleeding. Dreamweed brings sleep."
+  herbs: "Moonpetal cures fever. Thornroot stops bleeding. Dreamweed brings sleep."
+  moonpetal: "It blooms only at night. I gather it by moonlight from the forest clearing."
+  forest: "The forest is alive with old MAGIC. The ancient spirits still walk these paths."
+  magic: "Old magic — not the dark kind. My neighbor the WIZARD studies it deeply."
+  wizard: "Old Bramwell. Eccentric, but brilliant. He knows things forgotten by the ages."
+  graveyard: "The graveyard to the north worries me greatly. Something has awakened there."
+  undead: "I've seen shadows moving among the graves at night. It is not natural at all."
+  dungeon: "The dungeon beneath the temple contains a dark artifact. It must not be disturbed."
+  cure: "Some curses can be cured with the right combination of herbs and virtuous intent."
+  garden: "My garden holds thirty-seven varieties of healing plants. Years of careful work."
+  bye: "Come back if you're wounded or ill. The forest and I will help you."

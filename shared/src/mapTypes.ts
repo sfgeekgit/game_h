@@ -6,6 +6,8 @@ export type EntityType = 'player' | 'npc';
 
 export interface Tile {
   type: TileType;
+  /** For exit tiles: where this exit leads. Map ID or 'welcome' to return to title. */
+  exitTarget?: string;
 }
 
 export interface Entity {
@@ -55,4 +57,6 @@ export interface MoveResult {
   newY: number;
   newFacing: Direction;
   exitedArea: boolean;
+  /** When exitedArea is true, the target map ID or 'welcome' */
+  exitTarget?: string;
 }

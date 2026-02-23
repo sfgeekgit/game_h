@@ -1,16 +1,48 @@
 /**
  * Area manager — knows how to load a map definition and get or create
  * the persistent backend area instance for a given area_def.
- *
- * This is the only place that bridges DB area records and the in-memory store.
  */
-import { townSquare } from '@game_h/shared';
+import {
+  townSquare,
+  tavern,
+  marketplace,
+  forestPath,
+  castleGates,
+  docks,
+  herbalistGarden,
+  graveyard,
+  temple,
+  dungeonEntrance,
+} from '@game_h/shared';
 import type { MapDef, AreaState, Entity } from '@game_h/shared';
 import { getPersistentArea, createArea } from '../db/helpers.js';
 import { isAreaLoaded, loadArea } from './store.js';
 
 const MAP_REGISTRY: Record<string, MapDef> = {
   town_square: townSquare,
+  tavern,
+  marketplace,
+  forest_path: forestPath,
+  castle_gates: castleGates,
+  docks,
+  herbalist_garden: herbalistGarden,
+  graveyard,
+  temple,
+  dungeon_entrance: dungeonEntrance,
+};
+
+/** Maps each map_id to its area_def_id in the database. */
+export const MAP_AREA_DEF_IDS: Record<string, number> = {
+  town_square: 1,
+  tavern: 2,
+  marketplace: 3,
+  forest_path: 4,
+  castle_gates: 5,
+  docks: 6,
+  herbalist_garden: 7,
+  graveyard: 8,
+  temple: 9,
+  dungeon_entrance: 10,
 };
 
 function mapDefToAreaState(map: MapDef): AreaState {
@@ -29,7 +61,7 @@ function mapDefToAreaState(map: MapDef): AreaState {
     width: map.width,
     height: map.height,
     tiles: map.tiles,
-    entities: npcEntities, // player entities are added when players join
+    entities: npcEntities,
   };
 }
 
@@ -52,18 +84,16 @@ export async function getOrCreatePersistentArea(
   areaDefId: number,
   mapId: string,
 ): Promise<number> {
-  // Get or create the DB record
   let areaRow = await getPersistentArea(areaDefId);
   if (!areaRow) {
     const newId = await createArea(areaDefId);
     areaRow = await getPersistentArea(areaDefId);
     if (!areaRow) throw new Error(`Failed to create area for area_def ${areaDefId}`);
-    void newId; // insertId used by getPersistentArea re-fetch
+    void newId;
   }
 
   const areaId = areaRow.area_id;
 
-  // Load into memory if not already there (e.g. after server restart)
   if (!isAreaLoaded(areaId)) {
     const map = getMapDef(mapId);
     const initialState = mapDefToAreaState(map);
@@ -73,6 +103,6 @@ export async function getOrCreatePersistentArea(
   return areaId;
 }
 
-/** The Town Square area_def_id — the only area in the prototype. */
+/** Legacy constants kept for backward compat */
 export const TOWN_SQUARE_DEF_ID = 1;
 export const TOWN_SQUARE_MAP_ID = 'town_square';

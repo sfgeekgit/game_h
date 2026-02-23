@@ -21,7 +21,7 @@ function makeMiniMap(): MapDef {
 vi.mock('../api.js', () => ({
   api: {
     get: vi.fn((path: string) => {
-      if (path === '/area/map') return Promise.resolve(makeMiniMap());
+      if (path.startsWith('/area/map')) return Promise.resolve(makeMiniMap());
       return Promise.reject(new Error('Not found'));
     }),
     post: vi.fn().mockResolvedValue({}),

@@ -1,0 +1,21 @@
+npc_id: fishmonger
+name: "Agnes the Fishmonger"
+
+fallbacks:
+  - "Fresh fish is all I know."
+  - "Don't ask me about things beyond the market."
+  - "I sell fish, not answers."
+
+dialogue:
+  name: "Agnes here. Best FISH in all the realm, fresh from the DOCKS."
+  who: "I've sold fish in this market for thirty years. Ask me about the sea."
+  fish: "Salmon, herring, cod! All caught fresh this morning by the FISHERMAN."
+  docks: "My cousin works the docks. Honest work, though the sailors are rough folk."
+  fisherman: "Old Thomas catches the best cod. You'll find him on the PIER at the docks."
+  pier: "The docks are east of the marketplace. Watch out — the water's deep."
+  sea: "The sea is restless lately. Strange LIGHTS have been seen off the coast."
+  lights: "Blue lights, bobbing on the waves at night. The sailors are very spooked."
+  storm: "A great storm is coming from the east, or so the SAILORS say."
+  sailors: "Superstitious lot, sailors. But they know the sea better than anyone."
+  market: "Best marketplace in the region. Come browse the stalls!"
+  bye: "Buy some fish next time! Good for the mind and body!"

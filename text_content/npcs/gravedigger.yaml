@@ -1,0 +1,23 @@
+npc_id: gravedigger
+name: "Mortimer the Gravedigger"
+
+fallbacks:
+  - "I dig graves, not gossip."
+  - "The dead don't talk, and neither do I much."
+  - "That's beyond my knowing. I only know the dead."
+
+dialogue:
+  name: "Mortimer. I tend the dead here."
+  who: "Gravedigger and groundskeeper of this cemetery. Thirty years of service."
+  grave: "Every grave here has a story. Some are quite old. The OLDEST go back four centuries."
+  oldest: "The founders of this town. Good folk. They would be troubled by recent events."
+  events: "The dead are not resting easy. Three nights ago, MOVEMENT in the old section."
+  movement: "Shadows moving where shadows should not be. I locked myself in the CRYPT."
+  crypt: "The old crypt has stood since the town was founded. It's supposed to be sealed."
+  sealed: "Supposed to be. The seal was broken last week. I found the door standing open."
+  darkness: "Something came in or went out. I... I did not look inside."
+  ghost: "The spirit here — she used to be peaceful. Now she seems AGITATED."
+  agitated: "She points toward the temple when I see her. I don't know what she wants."
+  warning: "Stay to the path among the stones, stranger. The dead are restless tonight."
+  forest: "The forest path south leads back to the FOREST PATH and toward town."
+  bye: "Mind your step among the stones. Wouldn't want you joining my clientele."

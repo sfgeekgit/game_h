@@ -41,9 +41,18 @@ export async function initializeDatabase(): Promise<void> {
     )
   `);
 
-  // Seed Town Square area_def if not present
+  // Seed all area_defs if not present
   await query(`
-    INSERT IGNORE INTO area_defs (area_def_id, name, type, map_id)
-    VALUES (1, 'Town Square', 'fixed', 'town_square')
+    INSERT IGNORE INTO area_defs (area_def_id, name, type, map_id) VALUES
+      (1,  'Town Square',        'fixed', 'town_square'),
+      (2,  'The Rusty Flagon',   'fixed', 'tavern'),
+      (3,  'The Marketplace',    'fixed', 'marketplace'),
+      (4,  'Forest Path',        'fixed', 'forest_path'),
+      (5,  'Castle Gates',       'fixed', 'castle_gates'),
+      (6,  'The Docks',          'fixed', 'docks'),
+      (7,  'Herbalist Garden',   'fixed', 'herbalist_garden'),
+      (8,  'The Graveyard',      'fixed', 'graveyard'),
+      (9,  'Temple of Virtue',   'fixed', 'temple'),
+      (10, 'Dungeon Entrance',   'fixed', 'dungeon_entrance')
   `);
 }

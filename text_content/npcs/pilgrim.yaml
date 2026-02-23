@@ -1,0 +1,23 @@
+npc_id: pilgrim
+name: "Brother Oswald"
+
+fallbacks:
+  - "I am weary, friend. Please be gentle."
+  - "My faith sustains me, but my legs do not."
+  - "I don't know about such things. I am just a simple pilgrim."
+
+dialogue:
+  name: "I am Brother Oswald, a humble pilgrim."
+  who: "I travel to the TEMPLE of Virtue to complete my pilgrimage."
+  temple: "The Temple of Virtue lies beyond the castle gates to the north. A sacred place."
+  pilgrimage: "I have walked for forty days. The SHRINE within the temple is my goal."
+  shrine: "At the shrine, one may meditate on the eight VIRTUES and find peace."
+  virtues: "Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
+  virtue: "Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
+  faith: "Faith has kept me walking through dark times. Even through this dark FOREST."
+  forest: "I was nearly lost last night. A kind RANGER showed me back to the path."
+  ranger: "Erin her name was. A good soul. Watchful and kind."
+  castle: "The guards would not let me through the castle gates. I must find another way."
+  dungeon: "I pray for the souls trapped in the dungeon below the temple. May they find peace."
+  town: "The town square has kind folk. The ELDER there gave me bread."
+  bye: "Blessings upon you, traveler. May virtue guide your path."

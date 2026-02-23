@@ -1,0 +1,25 @@
+npc_id: hedge_wizard
+name: "Bramwell the Wizard"
+
+fallbacks:
+  - "Fascinating question, but not my area of expertise."
+  - "The cosmos is not so simple, friend."
+  - "Hmm. I would need to consult my texts on that."
+
+dialogue:
+  name: "Bramwell! Master of hedge magic and forgotten lore!"
+  who: "A scholar and mage of the old school. Not those temple fancies — REAL old magic."
+  magic: "Magic is the art of bending reality to will. Beautiful and dangerous in equal measure."
+  spell: "I know seventeen spells. Twelve work reliably. The other five... mostly."
+  spells: "I know seventeen spells. Twelve work reliably. The other five... mostly."
+  lore: "I study old texts and forgotten histories. The DUNGEON below the temple fascinates me."
+  dungeon: "Built by the ancients as a PRISON for something they dared not destroy."
+  prison: "An entity of great power, bound by the eight virtues. Should it escape..."
+  virtues: "The eight virtues are not just moral concepts — they are MAGICAL SEALS."
+  seals: "Each virtue corresponds to a shrine. All eight must be maintained or the prison weakens."
+  shrines: "The main shrine is in the TEMPLE. Others are scattered across the realm."
+  dark: "Dark forces have been weakening the seals. Carefully, systematically, deliberately."
+  graveyard: "The graveyard disturbance is one sign. The lord's illness is another."
+  warning: "Tread carefully, traveler. Forces are moving that have been still for centuries."
+  herbs: "Sylva's herbs are remarkable. She has plants I've never seen in any book."
+  bye: "Watch your step in this uncertain world. Magic sees what eyes cannot."

@@ -1,0 +1,21 @@
+npc_id: drunk_merchant
+name: "Tobias the Merchant"
+
+fallbacks:
+  - "*hiccup* What? Who's there?"
+  - "I have... wonderful things... for sale... maybe."
+  - "*sways* Ask me again... after another ale..."
+
+dialogue:
+  name: "*squints* Name's Tobias. Used to be a great merchant."
+  who: "I traded in SILK and GEMS, from the eastern kingdoms. Once."
+  silk: "Finest silk you've ever seen. All gone now. Lost in a SHIPWRECK."
+  gems: "Had a bag of rubies once. Left them somewhere... can't remember where."
+  shipwreck: "My ship went down near the DOCKS. All my cargo, lost to the sea."
+  docks: "The dockmaster knows about my old ship. Ask him if you want the truth."
+  treasure: "There's treasure... in the old DUNGEON... I'm sure of it. I mapped it once."
+  dungeon: "I mapped the dungeon years ago. The map... I think I lost it here somewhere."
+  map: "Somewhere in this tavern... under a table perhaps... if no one's sat on it."
+  help: "Buy me one more ale and I'll tell you something useful."
+  ale: "Marta's ale is the only thing keeping me upright these days."
+  bye: "Watch yourself out there. The roads aren't safe like they used to be."

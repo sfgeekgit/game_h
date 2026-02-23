@@ -1,0 +1,22 @@
+npc_id: minstrel
+name: "Lyra the Minstrel"
+
+fallbacks:
+  - "La la la... sorry, what were you saying?"
+  - "I was composing a melody. Start again?"
+  - "Music fills my head, leaving little room for other things."
+
+dialogue:
+  name: "I am Lyra! Minstrel of the marketplace!"
+  who: "I play for coins and company. All I ask is that you listen."
+  music: "Music is the language of the soul! Ask me about the VIRTUES — I know them all."
+  virtues: "Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility. The eight pillars of goodness."
+  virtue: "Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility. The eight pillars of goodness."
+  honesty: "To speak truth even when it is hard. The first and most important virtue."
+  valor: "Courage in the face of darkness. A hero must have VALOR."
+  compassion: "To feel another's pain as your own. The hardest virtue to practice."
+  coins: "A coin for a song? Even a small one helps a wandering minstrel."
+  tavern: "The bard at the TAVERN, Aldric, is my rival. But he has a fine voice."
+  castle: "The lord of the CASTLE was once generous with his patronage. Now the gates are shut."
+  temple: "I played at the temple once. Beautiful acoustics. The PRIEST was not amused."
+  bye: "Fare thee well! May music follow your every step!"

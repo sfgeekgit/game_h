@@ -1,13 +1,25 @@
 npc_id: elder
 name: "Elder Miriam"
 
+fallbacks:
+  - "I am not sure about that, child."
+  - "Ask me of the town or its history."
+  - "That is beyond my knowing."
+
 dialogue:
   name: "I am Miriam, elder of this village."
-  who: "I have guided this TOWN for thirty years. Ask me of its HISTORY."
+  who: "I have guided this TOWN for thirty years. Ask me of its HISTORY or the world beyond."
   look: "An elderly woman with silver hair and keen eyes. She leans on a gnarled oak staff."
   job: "I keep the peace and the old records. It is my duty to remember."
-  town: "Our town is small but proud. The BLACKSMITH forges fine steel, and the pond gives us water."
-  history: "This village was founded by settlers fleeing the darkness in the north. We have endured much."
+  town: "Our town is small but proud. The BLACKSMITH forges fine steel, and we have a TAVERN to the north."
+  history: "This village was founded by settlers fleeing darkness in the north. We have endured much."
   news: "A STRANGER appeared by the pond a fortnight ago. He speaks little and watches much."
-  stranger: "I do not trust him. He asks too many questions about the DUNGEON beneath the old ruins."
-  bye: "Go with wisdom, child."
+  stranger: "I do not trust him. He asks too many questions about the DUNGEON beneath the old temple."
+  dungeon: "The dungeon lies beneath the TEMPLE, past the castle to the north. A dark place."
+  temple: "The Temple of Virtue stands beyond the CASTLE GATES. Father Aldwyn tends it faithfully."
+  castle: "The castle gates are north of the MARKETPLACE. The lord has fallen ill — troubling times."
+  marketplace: "The market is east of here. Fine traders, good MERCHANT named Bram."
+  forest: "The FOREST lies west. Erin the ranger patrols it. A good soul."
+  tavern: "The Rusty Flagon is north of here — Marta keeps a fine inn."
+  key: "The old iron key? I gave it to a traveler years ago. Whether it still works, I cannot say."
+  bye: "Go with wisdom, child. The realm needs clear heads in troubled times."

@@ -1,0 +1,22 @@
+npc_id: sailor
+name: "Harwick the Sailor"
+
+fallbacks:
+  - "I sail ships, friend, not books."
+  - "Don't know about that. Ask the dockmaster."
+  - "That's land-folk business. I know the sea."
+
+dialogue:
+  name: "Name's Harwick. Thirty years at sea."
+  who: "I've sailed every coast of the realm. Ask me about the SEA."
+  sea: "Beautiful and deadly, the sea. She gives and she takes equally."
+  ship: "My ship, the Sea Dancer, is in for REPAIRS. A storm damaged her hull badly."
+  repairs: "The DOCKMASTER is overseeing the work. Good man, knows his timber."
+  storm: "Worst storm I've seen in twenty years. Something summoned it, mark my words."
+  lights: "Blue lights on the water? Aye, I've seen them. Started three weeks ago."
+  ghost: "Ghost ships, the men say. Lost vessels returned to haunt the living. Nonsense... mostly."
+  east: "The eastern islands are strange places. Ruins of an old civilization out there."
+  treasure: "Every sailor dreams of treasure. But it's the sea herself that's the prize."
+  docks: "These are fine docks. The DOCKMASTER runs a tight ship, so to speak."
+  cargo: "Strange ship came in last night. No flags, no manifest. Made my neck hairs stand up."
+  bye: "Fair winds and calm seas to you, friend!"

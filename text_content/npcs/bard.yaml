@@ -1,0 +1,23 @@
+npc_id: bard
+name: "Aldric the Bard"
+
+fallbacks:
+  - "That's not a verse I know."
+  - "Perhaps I'll write a song about that someday."
+  - "An interesting notion... but not one I have a tune for."
+
+dialogue:
+  name: "They call me Aldric. Master of strings and stories!"
+  who: "I am a bard — wanderer of the realm, singer of truths and tall tales."
+  song: "Shall I sing of HEROES? Of the DRAGON of the Eastern Peaks?"
+  dragon: "Three hundred years ago, a dragon scorched the valley. Only the VIRTUE of Sir Aldwyn drove it back."
+  virtue: "The eight virtues! Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
+  virtues: "The eight virtues! Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
+  hero: "Every hero needs a QUEST. What is yours, traveler?"
+  heroes: "Every hero needs a QUEST. What is yours, traveler?"
+  quest: "The greatest quest is the quest for virtue. Find the SHRINE, they say."
+  shrine: "The shrine lies within the TEMPLE, beyond the castle gates."
+  temple: "A grand place. The high priest knows the old secrets."
+  dungeon: "Dark places hide dark things. The dungeon beneath the temple — few return."
+  innkeeper: "Marta keeps a fine inn. Best ale in the realm, I say!"
+  bye: "Until we meet again! May your story be worth singing!"

@@ -1,0 +1,24 @@
+npc_id: ghost
+name: "Elara the Ghost"
+
+fallbacks:
+  - "......"
+  - "The veil between worlds grows thin..."
+  - "I cannot find the words... only cold silence..."
+
+dialogue:
+  name: "I... am Elara. I died here... long ago..."
+  who: "I was a scholar. I died seeking the truth about the DUNGEON beneath the temple."
+  dungeon: "Dark... so dark below the temple. A great evil SLEEPS there... but wakes..."
+  sleeps: "It is waking. I can feel it even here. The VIRTUES must be renewed. Please."
+  virtues: "The eight virtues... they are the seals. Find the SHRINE in the temple."
+  virtue: "The eight virtues... they are the seals. Find the SHRINE in the temple."
+  shrine: "Meditate at the shrine. Renew the seal with pure intent. Before it is too late."
+  late: "Something broke the SEAL on this cemetery. A piece of the great puzzle."
+  seal: "The seals are breaking, one by one. The WIZARD in the garden knows more."
+  wizard: "Bramwell... he suspects... go to him. And the PRIEST at the temple."
+  warning: "Go to the temple. Speak to FATHER ALDWYN. Time... grows very short."
+  light: "I see a light in the darkness... is it hope? Or the eye of the beast opening?"
+  peace: "I cannot rest until the evil is contained. Please... help those who still live..."
+  cold: "It is always cold here now. It was not always so."
+  bye: "Go with virtue, brave one. The realm... depends on you..."

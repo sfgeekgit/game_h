@@ -1,0 +1,23 @@
+npc_id: squire
+name: "Edmund the Squire"
+
+fallbacks:
+  - "I don't know about that, I'm afraid."
+  - "Sir Roland would know better than I."
+  - "I'm still learning. Ask someone wiser."
+
+dialogue:
+  name: "I am Edmund, squire to Sir Roland."
+  who: "I serve the guard here until I earn my knighthood."
+  lord: "Lord Aldric fell ill three nights ago. A strange VISITOR came to the castle."
+  visitor: "A dark-robed figure. We never saw his face. He left, and the lord collapsed."
+  collapse: "The MAGES say it was a curse. They're working to break it."
+  mages: "They came from the temple. Priests and scholars. I hope they can help the lord."
+  knight: "I dream of being a knight one day. Brave and just, like the heroes of legend."
+  training: "Sir Roland teaches me sword work each morning. I am... improving slowly."
+  temple: "The TEMPLE is east of here. The high priest Father Aldwyn may know about the curse."
+  dungeon: "There is a dungeon beneath the temple. They say a great evil is bound within."
+  dungeon: "Something stirs below. The servants near the temple well have heard strange sounds."
+  quest: "If I were brave enough I'd investigate myself. But Sir Roland forbids it."
+  marketplace: "The MARKETPLACE is south. Good place if you need supplies."
+  bye: "Good fortune to you, traveler. The realm needs brave souls these days."

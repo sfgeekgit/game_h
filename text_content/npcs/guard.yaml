@@ -1,0 +1,22 @@
+npc_id: guard
+name: "Roland the Gate Guard"
+
+fallbacks:
+  - "State your business or move along."
+  - "I'm not here to chat. Keep moving."
+  - "That's not my concern. Move along."
+
+dialogue:
+  name: "I am Roland, guard of the castle gates."
+  who: "I serve the lord. No one passes the inner keep without PURPOSE."
+  purpose: "What brings you to the castle? Travelers may pass to the TEMPLE to the east."
+  lord: "Lord Aldric is unwell. The castle is on restricted access until he recovers."
+  lockdown: "No one enters the inner keep. MAGES are attending to the lord."
+  mages: "Dark business, if you ask me. Those robes they wear and the chanting at night."
+  temple: "You can pass to the TEMPLE east of here. The priests may have answers."
+  passage: "The eastern path leads to the temple district. Don't cause trouble."
+  castle: "The inner castle is forbidden to commoners. Don't test my patience."
+  squire: "My SQUIRE Edmund has been inside recently. He may know more."
+  marketplace: "The MARKETPLACE is south, back through the gates. Good trading there."
+  gates: "These gates have stood for two hundred years. My family has guarded them for fifty."
+  bye: "Move along then. And keep out of trouble."

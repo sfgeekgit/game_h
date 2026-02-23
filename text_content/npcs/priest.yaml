@@ -1,0 +1,25 @@
+npc_id: priest
+name: "Father Aldwyn"
+
+fallbacks:
+  - "Speak with reverence in this sacred place."
+  - "I serve the virtues. Ask me of holy matters."
+  - "That is beyond my knowledge. But virtue may guide you to the answer."
+
+dialogue:
+  name: "I am Father Aldwyn, High Priest of the Temple of Virtue."
+  who: "I have served this temple for forty years. The VIRTUES are my life's work."
+  virtues: "The eight virtues: Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
+  virtue: "The eight virtues: Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
+  shrine: "The shrine at the heart of this temple is the greatest seal against the DARKNESS."
+  darkness: "An ancient evil, bound in the DUNGEON below. But the seals are weakening."
+  dungeon: "Forbidden to enter alone. The dungeon contains what must never be freed."
+  seal: "Three seals have already cracked. The lord's illness, the graveyard... clear signs."
+  lord: "Lord Aldric was cursed by someone trying to break the seals. A dark agent among us."
+  agent: "We don't know who. But they know the old lore and the weaknesses in the binding."
+  help: "If you wish to help, meditate at the SHRINE. A pure heart strengthens the seal."
+  meditation: "Approach the shrine and focus on each of the eight virtues with sincerity."
+  acolyte: "My ACOLYTE Petra can show you the way to the shrine if you need guidance."
+  castle: "The lord's guard, Roland, is an honest man. The CASTLE is in troubled hands."
+  dungeon_below: "Do not go below unless you are truly prepared. The darkness down there is ancient."
+  bye: "Go in virtue, traveler. The light of goodness shines even in the darkest places."

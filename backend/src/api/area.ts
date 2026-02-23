@@ -6,10 +6,13 @@ import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { applyMove } from '@game_h/shared';
 import type { Direction, Entity } from '@game_h/shared';
-import { getOrCreatePersistentArea, TOWN_SQUARE_DEF_ID, TOWN_SQUARE_MAP_ID, getMapDef } from '../area/manager.js';
+import {
+  getOrCreatePersistentArea,
+  getMapDef,
+  MAP_AREA_DEF_IDS,
+} from '../area/manager.js';
 import { withAreaLock, readAreaState, findPlayerEntity } from '../area/store.js';
 import { updatePlayerPosition } from '../db/helpers.js';
-import { townSquare } from '@game_h/shared';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const NPC_DIR = join(__dirname, '../../../text_content/npcs');
@@ -20,18 +23,24 @@ const router = Router();
 const VALID_DIRECTIONS = new Set<string>(['north', 'south', 'east', 'west']);
 
 /**
- * GET /api/area/map
- * Returns the Town Square map definition (tiles + metadata, no player entities).
+ * GET /api/area/map?mapId=town_square
+ * Returns the map definition for the given map ID (default: town_square).
  * Used by the frontend for client-side mode.
  */
-router.get('/map', (_req: Request, res: Response) => {
-  res.json(townSquare);
+router.get('/map', (req: Request, res: Response) => {
+  const mapId = (req.query.mapId as string) || 'town_square';
+  try {
+    const map = getMapDef(mapId);
+    res.json(map);
+  } catch {
+    res.status(404).json({ error: `Map not found: ${mapId}` });
+  }
 });
 
 /**
  * POST /api/area/join
- * Join the persistent Town Square backend instance.
- * Adds the player entity to in-memory state and records the area in session.
+ * Join a persistent area instance.
+ * Body: { mapId?: string } — defaults to 'town_square'
  */
 router.post('/join', async (req: Request, res: Response) => {
   try {
@@ -41,18 +50,19 @@ router.post('/join', async (req: Request, res: Response) => {
       return;
     }
 
-    const areaId = await getOrCreatePersistentArea(TOWN_SQUARE_DEF_ID, TOWN_SQUARE_MAP_ID);
+    const mapId = (req.body.mapId as string) || 'town_square';
+    const areaDefId = MAP_AREA_DEF_IDS[mapId];
+    if (!areaDefId) {
+      res.status(400).json({ error: `Unknown map: ${mapId}` });
+      return;
+    }
 
-    const map = getMapDef(TOWN_SQUARE_MAP_ID);
-
-    // Determine spawn position (map default; could later use last_x/last_y from players table)
+    const areaId = await getOrCreatePersistentArea(areaDefId, mapId);
+    const map = getMapDef(mapId);
     const spawnX = map.spawnX;
     const spawnY = map.spawnY;
 
-    // --- DO ALL ASYNC WORK BEFORE THIS LINE ---
-    // Add player entity to area if not already present (idempotent join).
     await withAreaLock(areaId, (state) => {
-      // CRITICAL SECTION — synchronous only.
       const existing = state.entities.find((e) => e.id === userId && e.type === 'player');
       if (!existing) {
         const playerEntity: Entity = {
@@ -65,7 +75,6 @@ router.post('/join', async (req: Request, res: Response) => {
         state.entities.push(playerEntity);
       }
     });
-    // --- DB WRITES AND OTHER ASYNC WORK GO AFTER THIS LINE ---
 
     req.session.currentAreaId = areaId;
 
@@ -99,14 +108,12 @@ router.post('/move', async (req: Request, res: Response) => {
       return;
     }
 
-    // Read current player state before the lock (async-safe read).
     const playerBefore = findPlayerEntity(areaId, userId);
     if (!playerBefore) {
       res.status(400).json({ error: 'Player not in area' });
       return;
     }
 
-    // Compute the move result outside the lock using the current state snapshot.
     const stateBefore = readAreaState(areaId);
     if (!stateBefore) {
       res.status(500).json({ error: 'Area not in memory' });
@@ -114,12 +121,7 @@ router.post('/move', async (req: Request, res: Response) => {
     }
     const moveResult = applyMove(stateBefore, playerBefore, direction as Direction);
 
-    // --- DO ALL ASYNC WORK BEFORE THIS LINE ---
-    // Apply the pre-computed result inside the lock synchronously.
     await withAreaLock(areaId, (state) => {
-      // CRITICAL SECTION — synchronous only.
-      // Read current map state, apply pre-computed update, write back.
-      // DO NOT add async operations here. If you think you need to, redesign.
       const entity = state.entities.find((e) => e.id === userId && e.type === 'player');
       if (entity) {
         entity.x = moveResult.newX;
@@ -127,19 +129,15 @@ router.post('/move', async (req: Request, res: Response) => {
         entity.facing = moveResult.newFacing;
       }
     });
-    // --- DB WRITES AND OTHER ASYNC WORK GO AFTER THIS LINE ---
 
-    // Persist position to DB asynchronously (fire and forget for prototype).
     if (moveResult.success) {
       updatePlayerPosition(userId, areaId, moveResult.newX, moveResult.newY).catch((err) =>
         console.error('Failed to persist player position:', err),
       );
     }
 
-    // If player exited, remove entity from area state.
     if (moveResult.exitedArea) {
       await withAreaLock(areaId, (state) => {
-        // CRITICAL SECTION — synchronous only.
         const idx = state.entities.findIndex((e) => e.id === userId && e.type === 'player');
         if (idx !== -1) state.entities.splice(idx, 1);
       });
@@ -181,7 +179,7 @@ router.get('/state', (req: Request, res: Response) => {
 /**
  * POST /api/area/exit
  * Record final player position (used by frontend-mode on exit tile).
- * Body: { x, y, areaDefId }
+ * Body: { x, y, mapId }
  */
 router.post('/exit', async (req: Request, res: Response) => {
   try {
@@ -191,31 +189,38 @@ router.post('/exit', async (req: Request, res: Response) => {
       return;
     }
 
-    const { x, y, areaDefId } = req.body;
+    const { x, y, mapId } = req.body;
     if (
       typeof x !== 'number' ||
       typeof y !== 'number' ||
       !Number.isInteger(x) ||
       !Number.isInteger(y) ||
-      typeof areaDefId !== 'number'
+      typeof mapId !== 'string'
     ) {
       res.status(400).json({ error: 'Invalid position' });
       return;
     }
 
     // Validate coords are within map bounds
-    const map = getMapDef(TOWN_SQUARE_MAP_ID);
+    let map;
+    try {
+      map = getMapDef(mapId);
+    } catch {
+      res.status(400).json({ error: 'Unknown map' });
+      return;
+    }
     if (x < 0 || x >= map.width || y < 0 || y >= map.height) {
       res.status(400).json({ error: 'Position out of bounds' });
       return;
     }
 
-    // For frontend mode, areaId is the persistent area's ID (or 0 if never joined).
-    // We persist the last known position either way.
-    const areaRow = await (await import('../db/helpers.js')).getPersistentArea(areaDefId);
-    const areaId = areaRow?.area_id ?? 0;
-    if (areaId) {
-      await updatePlayerPosition(userId, areaId, x, y);
+    const areaDefId = MAP_AREA_DEF_IDS[mapId];
+    if (areaDefId) {
+      const areaRow = await (await import('../db/helpers.js')).getPersistentArea(areaDefId);
+      const areaId = areaRow?.area_id ?? 0;
+      if (areaId) {
+        await updatePlayerPosition(userId, areaId, x, y);
+      }
     }
 
     res.json({ success: true });
@@ -233,7 +238,6 @@ router.get('/npc/:npcId/dialogue', async (req: Request, res: Response) => {
   try {
     const npcId = String(req.params.npcId);
 
-    // Only allow alphanumeric + underscore/hyphen IDs
     if (!/^[a-zA-Z0-9_-]+$/.test(npcId)) {
       res.status(400).json({ error: 'Invalid NPC ID' });
       return;
