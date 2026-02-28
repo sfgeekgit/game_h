@@ -8,7 +8,7 @@ fallbacks:
 
 dialogue:
   name: "Bramwell! Master of hedge magic and forgotten lore!"
-  hi: "A scholar and mage of the old school. Not those temple fancies — REAL old magic."
+  hi: "A scholar and mage of the old school. Not those temple fancies — real old magic."
   look: "A thin, bespectacled old man in robes once fine and now covered in small burn marks and ink stains. His white hair sticks out in every direction."
   magic: "Magic is the art of bending reality to will. Beautiful and dangerous in equal measure."
   spell: "I know seventeen spells. Twelve work reliably. The other five... mostly."
@@ -16,10 +16,11 @@ dialogue:
   lore: "I study old texts and forgotten histories. The DUNGEON below the temple fascinates me."
   dungeon: "Built by the ancients as a PRISON for something they dared not destroy."
   prison: "An entity of great power, bound by the eight virtues. Should it escape..."
-  virtues: "The eight virtues are not just moral concepts — they are MAGICAL SEALS."
+  virtues: "The eight virtues are not just moral concepts — they are magical SEALS."
   seals: "Each virtue corresponds to a shrine. All eight must be maintained or the prison weakens."
   shrines: "The main shrine is in the TEMPLE. Others are scattered across the realm."
   dark: "Dark forces have been weakening the seals. Carefully, systematically, deliberately."
+  temple: "The Temple of Virtue stands north of the castle. The main shrine of the eight is there."
   graveyard: "The graveyard disturbance is one sign. The lord's illness is another."
   warning: "Tread carefully, traveler. Forces are moving that have been still for centuries."
   herbs: "Sylva's herbs are remarkable. She has plants I've never seen in any book."

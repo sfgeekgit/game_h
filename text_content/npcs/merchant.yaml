@@ -15,6 +15,7 @@ dialogue:
   provisions: "Dried meat, hardtack, waterskins. All a traveler needs."
   goods: "I also trade in information. Ask me about any place in the realm."
   castle: "The castle lies north. The GUARD may let you pass if you look respectable."
+  guard: "The guards at the castle gates are strict but fair. Look respectable and they'll let you through."
   docks: "The eastern docks are rough. Watch your purse and your back."
   forest: "Don't wander the FOREST alone at night. Strange things lurk there."
   graveyard: "The graveyard north of the forest? Avoid it. Especially after dark."

@@ -15,6 +15,8 @@ dialogue:
   secret: "There is a hidden passage beneath the old building. But you did not hear that from me."
   temple: "The temple holds the key. Speak to the PRIEST. And the knight's ghost... he knows the truth."
   dungeon: "The dungeon entrance is beneath the TEMPLE. Grimwald the keeper guards the way."
+  sword: "A silver sword, forged to banish darkness. Lost in the dungeon long ago. It may yet be found."
+  priest: "Father Aldwyn at the temple. He does not know what he truly guards. Tell him what you know."
   seals: "The seals of virtue hold back something terrible. Someone is breaking them. Deliberately."
   castle: "The lord's illness is no coincidence. Someone sent that dark-robed visitor."
   graveyard: "Even the dead are restless. The entire realm is out of balance."

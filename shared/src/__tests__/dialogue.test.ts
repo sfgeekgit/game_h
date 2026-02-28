@@ -73,4 +73,20 @@ describe('resolveKeyword', () => {
     const result = resolveKeyword('   ', testNpc);
     expect(result).toBe('I have nothing to say about that.');
   });
+
+  it('matches a keyword found anywhere in a sentence', () => {
+    expect(resolveKeyword('tell me about the sword', testNpc)).toBe('A fine blade indeed.');
+  });
+
+  it('matches a misspelled keyword when first 4 chars are correct', () => {
+    expect(resolveKeyword('sworad', testNpc)).toBe('A fine blade indeed.');
+  });
+
+  it('matches a misspelled keyword inside a sentence', () => {
+    expect(resolveKeyword('what about the sworad', testNpc)).toBe('A fine blade indeed.');
+  });
+
+  it('does not fuzzy-match words shorter than 4 characters', () => {
+    expect(resolveKeyword('nam', testNpc)).toBe('I have nothing to say about that.');
+  });
 });

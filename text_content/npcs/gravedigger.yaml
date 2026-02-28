@@ -20,5 +20,5 @@ dialogue:
   ghost: "The spirit here — she used to be peaceful. Now she seems AGITATED."
   agitated: "She points toward the temple when I see her. I don't know what she wants."
   warning: "Stay to the path among the stones, stranger. The dead are restless tonight."
-  forest: "The forest path south leads back to the FOREST PATH and toward town."
+  forest: "The path south leads through the graveyard gate and back toward town."
   bye: "Mind your step among the stones. Wouldn't want you joining my clientele."

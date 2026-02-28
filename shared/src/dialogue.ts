@@ -26,18 +26,29 @@ const KEYWORD_ALIASES: Record<string, string> = {
   hello: 'hi',
 };
 
+/** Match a single word against dialogue keys. Exact first, then 4-char prefix (shortest key wins). */
+function matchWord(word: string, keys: string[]): string | null {
+  if (keys.includes(word)) return word;
+  if (word.length >= 4) {
+    const hits = keys.filter(k => k.startsWith(word.slice(0, 4)));
+    if (hits.length) return hits.sort((a, b) => a.length - b.length)[0];
+  }
+  return null;
+}
+
 export function resolveKeyword(
-  keyword: string,
+  input: string,
   npcData: NpcDialogueData,
   genericFallbacks?: DialogueFallbacks,
 ): string {
-  let normalised = keyword.trim().toLowerCase();
-  if (!normalised) return DEFAULT_FALLBACK;
+  const keys = Object.keys(npcData.dialogue);
+  const words = input.toLowerCase().trim().split(/\W+/).filter(Boolean);
+  if (!words.length) return DEFAULT_FALLBACK;
 
-  normalised = KEYWORD_ALIASES[normalised] ?? normalised;
-
-  const response = npcData.dialogue[normalised];
-  if (response) return response;
+  for (const word of words) {
+    const matched = matchWord(KEYWORD_ALIASES[word] ?? word, keys);
+    if (matched) return npcData.dialogue[matched];
+  }
 
   // Use NPC-specific fallbacks first, then generic, then hardcoded default
   const fallbacks =

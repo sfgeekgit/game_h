@@ -76,6 +76,16 @@ describe.each(npcEntries)('NPC file "$filename"', ({ filename, data }) => {
     expect((data.dialogue?.['look'] as string).trim().length).toBeGreaterThan(0);
   });
 
+  it('all ALL-CAPS words in dialogue responses exist as dialogue keys', () => {
+    // An allowlist could be added later for intentional cross-references (e.g. other NPC names)
+    const keys = new Set(Object.keys(data.dialogue ?? {}));
+    const missing = Object.entries(data.dialogue ?? {}).flatMap(([kw, text]) =>
+      typeof text !== 'string' ? [] :
+      (text.match(/\b[A-Z]{2,}\b/g) ?? []).filter(w => !keys.has(w.toLowerCase())).map(w => `[${kw}] "${w}"`),
+    );
+    expect(missing, `unresolved CAPS keywords:\n${missing.join('\n')}`).toHaveLength(0);
+  });
+
   it('fallbacks, if present, is a non-empty array of strings', () => {
     if (data.fallbacks === undefined) return; // optional field
     expect(Array.isArray(data.fallbacks), `${filename} fallbacks must be an array`).toBe(true);

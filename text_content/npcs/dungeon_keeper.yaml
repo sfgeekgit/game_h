@@ -20,6 +20,7 @@ dialogue:
   warning: "Whatever you do, don't go further down. Don't go deeper than this chamber."
   chamber: "Stay here. Leave when you can. This place is not for the living."
   priest: "If anyone can help, it is Father Aldwyn in the TEMPLE above. Go to him."
+  temple: "The Temple of Virtue stands above. Father Aldwyn tends it. A holy place built to watch over what lies below."
   ghost: "The ghost of a knight wanders here. He tried to slay what cannot be slain."
   knight: "He has been here longer than I have. Poor soul. He knows the truth of this place."
   family: "Seven generations of my family have stood this watch. I pray I am not the last."
