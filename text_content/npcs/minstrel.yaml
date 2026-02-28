@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Lyra! Minstrel of the marketplace!"
-  who: "I play for coins and company. All I ask is that you listen."
+  hi: "I play for coins and company. All I ask is that you listen."
+  look: "A young woman with clever eyes and nimble fingers, seated on a stool with a small harp resting across her knees."
   music: "Music is the language of the soul! Ask me about the VIRTUES — I know them all."
   virtues: "Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility. The eight pillars of goodness."
   virtue: "Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility. The eight pillars of goodness."

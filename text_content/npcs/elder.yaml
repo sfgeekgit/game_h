@@ -8,7 +8,7 @@ fallbacks:
 
 dialogue:
   name: "I am Miriam, elder of this village."
-  who: "I have guided this TOWN for thirty years. Ask me of its HISTORY or the world beyond."
+  hi: "I have guided this TOWN for thirty years. Ask me of its HISTORY or the world beyond."
   look: "An elderly woman with silver hair and keen eyes. She leans on a gnarled oak staff."
   job: "I keep the peace and the old records. It is my duty to remember."
   town: "Our town is small but proud. The BLACKSMITH forges fine steel, and we have a TAVERN to the north."

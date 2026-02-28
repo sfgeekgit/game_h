@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Sylva. Herbalist and healer of the forest grove."
-  who: "I study plants and their properties. HEALING is my craft and my calling."
+  hi: "I study plants and their properties. HEALING is my craft and my calling."
+  look: "A woman of middle years with earth-stained fingers and a practical apron hung with bundles of drying herbs. She moves with quiet, careful precision."
   healing: "I can cure most ailments with the right HERB. What ails you?"
   herb: "Moonpetal cures fever. Thornroot stops bleeding. Dreamweed brings sleep."
   herbs: "Moonpetal cures fever. Thornroot stops bleeding. Dreamweed brings sleep."

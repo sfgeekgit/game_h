@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I... was Sir Gareth... a knight... I came here seeking glory..."
-  who: "A knight of the realm. I came to slay the Sleeper. I was a proud fool."
+  hi: "A knight of the realm. I came to slay the Sleeper. I was a proud fool."
+  look: "A translucent warrior in antique armor, flickering like candlelight. His face holds the settled sorrow of someone long at peace with a terrible mistake."
   fool: "The SLEEPER cannot be slain. It can only be BOUND by the eight virtues."
   bound: "The virtues working in concert. All eight SHRINES must be renewed."
   shrines: "There are eight shrines, one per virtue. The main shrine is in the TEMPLE above."

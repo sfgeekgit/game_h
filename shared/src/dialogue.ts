@@ -21,13 +21,20 @@ const DEFAULT_FALLBACK = 'I have nothing to say about that.';
  * Look up a keyword in the NPC's dialogue data.
  * Returns the response text, or a random fallback if the keyword is unknown.
  */
+/** Keywords that are treated as aliases for another keyword. */
+const KEYWORD_ALIASES: Record<string, string> = {
+  hello: 'hi',
+};
+
 export function resolveKeyword(
   keyword: string,
   npcData: NpcDialogueData,
   genericFallbacks?: DialogueFallbacks,
 ): string {
-  const normalised = keyword.trim().toLowerCase();
+  let normalised = keyword.trim().toLowerCase();
   if (!normalised) return DEFAULT_FALLBACK;
+
+  normalised = KEYWORD_ALIASES[normalised] ?? normalised;
 
   const response = npcData.dialogue[normalised];
   if (response) return response;

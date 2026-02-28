@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Marta, keeper of The Rusty Flagon."
-  who: "I run this inn. Ask me about ROOMS, ALE, or what TRAVELERS have said."
+  hi: "I run this inn. Ask me about ROOMS, ALE, or what TRAVELERS have said."
+  look: "A stout woman with flour-dusted hands and rosy cheeks. Her sharp eyes miss nothing in her common room."
   inn: "The Rusty Flagon — finest inn in the realm. Hot meals, warm beds, cold ale."
   rooms: "A warm bed awaits the weary traveler. Rest well before your journey."
   ale: "Our ale comes from the monastery to the north. Strong as an ox, smooth as a river."

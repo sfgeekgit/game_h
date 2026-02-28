@@ -8,7 +8,7 @@ fallbacks:
 
 dialogue:
   name: "My name is Gareth."
-  who: "I am the village blacksmith. Ask me about the SWORD or my WORK."
+  hi: "I am the village blacksmith. Ask me about the SWORD or my WORK."
   look: "A burly man with soot-stained hands and a leather apron. His eyes gleam with pride."
   job: "I forge weapons and armor for the townsfolk. My best work is the SWORD."
   sword: "I forged a silver sword for the king himself. But it was lost in the DUNGEON long ago."

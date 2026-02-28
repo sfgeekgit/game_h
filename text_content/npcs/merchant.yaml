@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Bram at your service! Best PRICES in the market!"
-  who: "I sell provisions, tools, and sundries. Whatever you need for your JOURNEY."
+  hi: "I sell provisions, tools, and sundries. Whatever you need for your JOURNEY."
+  look: "A compact, energetic man with a waxed mustache and the eager eyes of someone who genuinely enjoys making a deal."
   prices: "Fair prices for honest folk. Better than those DOCKS merchants, I say."
   journey: "A long road ahead? Stock up on PROVISIONS first. You'll thank me."
   provisions: "Dried meat, hardtack, waterskins. All a traveler needs."

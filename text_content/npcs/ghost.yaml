@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I... am Elara. I died here... long ago..."
-  who: "I was a scholar. I died seeking the truth about the DUNGEON beneath the temple."
+  hi: "I was a scholar. I died seeking the truth about the DUNGEON beneath the temple."
+  look: "A translucent figure in scholar's robes, barely visible in daylight. Her features are sorrowful and her eyes hold centuries of patient waiting."
   dungeon: "Dark... so dark below the temple. A great evil SLEEPS there... but wakes..."
   sleeps: "It is waking. I can feel it even here. The VIRTUES must be renewed. Please."
   virtues: "The eight virtues... they are the seals. Find the SHRINE in the temple."

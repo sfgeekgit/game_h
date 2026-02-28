@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Grimwald. I keep the dungeon. Or rather... I keep watch over it."
-  who: "My family has guarded this dungeon for seven generations. We don't go inside."
+  hi: "My family has guarded this dungeon for seven generations. We don't go inside."
+  look: "A grim-faced man of middle years with hollow cheeks and eyes that have seen too much. He carries no weapons — he knows they would not help here."
   inside: "None who enter the DEEP come back unchanged. Some don't come back at all."
   deep: "Below this chamber, things get darker. Much darker. You don't want to know."
   prisoner: "There is one prisoner in the deepest cell. We call it the SLEEPER."

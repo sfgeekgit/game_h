@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Roland, guard of the castle gates."
-  who: "I serve the lord. No one passes the inner keep without PURPOSE."
+  hi: "I serve the lord. No one passes the inner keep without PURPOSE."
+  look: "A broad-shouldered man in polished chain mail, standing rigidly at attention. His expression is stern and his hand rests near his sword hilt."
   purpose: "What brings you to the castle? Travelers may pass to the TEMPLE to the east."
   lord: "Lord Aldric is unwell. The castle is on restricted access until he recovers."
   lockdown: "No one enters the inner keep. MAGES are attending to the lord."

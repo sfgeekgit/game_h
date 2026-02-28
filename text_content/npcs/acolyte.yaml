@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Petra, acolyte of the Temple of Virtue."
-  who: "I serve Father Aldwyn and study the eight virtues. Still much to learn."
+  hi: "I serve Father Aldwyn and study the eight virtues. Still much to learn."
+  look: "A young woman in novice's grey robes with an earnest, slightly anxious expression. She clutches a small prayer book in both hands."
   study: "I have studied here five years. The VIRTUES are complex but deeply beautiful."
   virtues: "I am working on Compassion and Humility. They are the hardest for me to embody."
   virtue: "I am working on Compassion and Humility. They are the hardest for me to embody."

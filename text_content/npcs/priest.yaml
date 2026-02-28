@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Father Aldwyn, High Priest of the Temple of Virtue."
-  who: "I have served this temple for forty years. The VIRTUES are my life's work."
+  hi: "I have served this temple for forty years. The VIRTUES are my life's work."
+  look: "A tall, silver-haired man in immaculate white robes. His bearing is dignified and his gaze is both kind and deeply serious."
   virtues: "The eight virtues: Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
   virtue: "The eight virtues: Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."
   shrine: "The shrine at the heart of this temple is the greatest seal against the DARKNESS."

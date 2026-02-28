@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Henrik, Dockmaster of the Port of Aldwick."
-  who: "I keep these docks running. Every SHIP that comes and goes is my responsibility."
+  hi: "I keep these docks running. Every SHIP that comes and goes is my responsibility."
+  look: "A brisk, broad-shouldered man with a ledger tucked under his arm and an expression of perpetual mild impatience."
   ship: "Three vessels in port. The Sea Dancer, the Merchant Prince, and one I don't recognize."
   unknown: "The unnamed vessel arrived in the night. No manifest, no cargo declared."
   manifest: "Every ship must declare its cargo. This one refused. I've filed a report."

@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Agnes here. Best FISH in all the realm, fresh from the DOCKS."
-  who: "I've sold fish in this market for thirty years. Ask me about the sea."
+  hi: "I've sold fish in this market for thirty years. Ask me about the sea."
+  look: "A weathered woman with strong arms and a practical apron. Her hands are quick and she smells faintly of the sea."
   fish: "Salmon, herring, cod! All caught fresh this morning by the FISHERMAN."
   docks: "My cousin works the docks. Honest work, though the sailors are rough folk."
   fisherman: "Old Thomas catches the best cod. You'll find him on the PIER at the docks."

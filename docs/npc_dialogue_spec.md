@@ -38,7 +38,7 @@ name: "Gareth the Blacksmith"
 
 dialogue:
   name: "My name is Gareth."
-  who: "I am the village blacksmith. Ask me about the SWORD."
+  hi: "I am the village blacksmith. Ask me about the SWORD."
   look: "A burly man with soot-stained hands and a leather apron. His eyes gleam with pride."
   sword: "I forged a silver sword for the king. Ask me about the DUNGEON."
   dungeon: "The dungeon lies to the north. You need a KEY."
@@ -66,10 +66,10 @@ Keep conditionals minimal — most keywords should stay as simple strings.
 
 ## Universal Keywords
 
-Every NPC must respond to these keywords:
+Every NPC must respond to these keywords (enforced by automated tests):
 
 - **NAME** — tells you their name
-- **WHO** — describes who they are, their role or purpose (the most important one — players will ask this of everyone)
+- **HI** — describes who they are, their role or purpose (the most important one — players will greet NPCs this way). **HELLO** is automatically treated as an alias for **HI** by the dialogue system.
 - **LOOK** — describes what the player sees when they look at the NPC (appearance, demeanor, etc.)
 
 ---
@@ -153,7 +153,7 @@ fallbacks:  # Optional - overrides generic
 
 dialogue:
   name: "My name is Gareth."
-  who: "I am the village blacksmith."
+  hi: "I am the village blacksmith."
   # ...
 ```
 

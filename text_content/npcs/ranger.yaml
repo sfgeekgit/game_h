@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Erin. I patrol these woods."
-  who: "A ranger of the realm. I keep the forest roads safe for travelers."
+  hi: "A ranger of the realm. I keep the forest roads safe for travelers."
+  look: "A lean figure in mottled green and brown, moving with the quiet sureness of someone at home in the forest. Her eyes are watchful and steady."
   forest: "These woods are older than memory. Strange MAGIC lingers among the trees."
   magic: "The trees whisper at night. The HERBALIST in the garden to the west knows more."
   herbalist: "She lives in a cottage west of here. A healer and scholar of old nature magic."

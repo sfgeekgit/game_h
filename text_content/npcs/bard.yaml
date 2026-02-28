@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "They call me Aldric. Master of strings and stories!"
-  who: "I am a bard — wanderer of the realm, singer of truths and tall tales."
+  hi: "I am a bard — wanderer of the realm, singer of truths and tall tales."
+  look: "A lanky man with a lute slung across his back and a half-empty tankard in hand. His colorful clothes are well-worn."
   song: "Shall I sing of HEROES? Of the DRAGON of the Eastern Peaks?"
   dragon: "Three hundred years ago, a dragon scorched the valley. Only the VIRTUE of Sir Aldwyn drove it back."
   virtue: "The eight virtues! Honesty, Compassion, Valor, Justice, Sacrifice, Honor, Spirituality, Humility."

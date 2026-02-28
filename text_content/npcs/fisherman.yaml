@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Thomas. Been fishing these waters for fifty years."
-  who: "Just an old fisherman. Though I know these waters better than anyone alive."
+  hi: "Just an old fisherman. Though I know these waters better than anyone alive."
+  look: "A small, wiry old man bundled in layers against the sea wind, squinting at his fishing line with patient, rheumy eyes."
   fish: "The catch has been poor lately. The fish are scared of something BELOW."
   below: "Something moving in the deep. I can feel it through my line at night."
   deep: "Never seen the like in fifty years of fishing. The LIGHTS don't help."

@@ -8,7 +8,7 @@ fallbacks:
 
 dialogue:
   name: "Names have power. You may call me... a traveler."
-  who: "I am no one of consequence. Yet."
+  hi: "I am no one of consequence. Yet."
   look: "A tall figure draped in a dark cloak. Only pale eyes are visible beneath the hood."
   darkness: "The DARKNESS stirs beneath the TEMPLE. Something ancient awakens in the dungeon."
   quest: "If you seek purpose, find the silver SWORD the blacksmith speaks of. It was forged to banish darkness."

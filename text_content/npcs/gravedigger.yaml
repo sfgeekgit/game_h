@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Mortimer. I tend the dead here."
-  who: "Gravedigger and groundskeeper of this cemetery. Thirty years of service."
+  hi: "Gravedigger and groundskeeper of this cemetery. Thirty years of service."
+  look: "A lean, weathered man with soil perpetually under his nails and a shovel ever close at hand. His expression is matter-of-fact rather than grim."
   grave: "Every grave here has a story. Some are quite old. The OLDEST go back four centuries."
   oldest: "The founders of this town. Good folk. They would be troubled by recent events."
   events: "The dead are not resting easy. Three nights ago, MOVEMENT in the old section."

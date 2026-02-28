@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "I am Brother Oswald, a humble pilgrim."
-  who: "I travel to the TEMPLE of Virtue to complete my pilgrimage."
+  hi: "I travel to the TEMPLE of Virtue to complete my pilgrimage."
+  look: "A travel-worn monk in dusty grey robes, leaning on a walking staff. His face is kind but drawn with exhaustion from long roads."
   temple: "The Temple of Virtue lies beyond the castle gates to the north. A sacred place."
   pilgrimage: "I have walked for forty days. The SHRINE within the temple is my goal."
   shrine: "At the shrine, one may meditate on the eight VIRTUES and find peace."

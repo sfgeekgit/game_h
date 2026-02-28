@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Name's Harwick. Thirty years at sea."
-  who: "I've sailed every coast of the realm. Ask me about the SEA."
+  hi: "I've sailed every coast of the realm. Ask me about the SEA."
+  look: "A weathered man with a salt-and-pepper beard and sun-darkened skin. Deep rope burns mark his hands."
   sea: "Beautiful and deadly, the sea. She gives and she takes equally."
   ship: "My ship, the Sea Dancer, is in for REPAIRS. A storm damaged her hull badly."
   repairs: "The DOCKMASTER is overseeing the work. Good man, knows his timber."

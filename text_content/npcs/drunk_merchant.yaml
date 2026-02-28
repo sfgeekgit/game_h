@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "*squints* Name's Tobias. Used to be a great merchant."
-  who: "I traded in SILK and GEMS, from the eastern kingdoms. Once."
+  hi: "I traded in SILK and GEMS, from the eastern kingdoms. Once."
+  look: "A once-well-dressed man now rumpled and red-faced, leaning heavily against the table. His eyes are bleary but flicker with old shrewdness."
   silk: "Finest silk you've ever seen. All gone now. Lost in a SHIPWRECK."
   gems: "Had a bag of rubies once. Left them somewhere... can't remember where."
   shipwreck: "My ship went down near the DOCKS. All my cargo, lost to the sea."

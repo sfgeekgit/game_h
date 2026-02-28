@@ -7,7 +7,7 @@ const testNpc: NpcDialogueData = {
   name: 'Test NPC',
   dialogue: {
     name: 'My name is Test.',
-    who: 'I am a test NPC.',
+    hi: 'I am a test NPC.',
     look: 'A placeholder character.',
     sword: 'A fine blade indeed.',
   },
@@ -33,7 +33,15 @@ describe('resolveKeyword', () => {
   });
 
   it('trims whitespace', () => {
-    expect(resolveKeyword('  who  ', testNpc)).toBe('I am a test NPC.');
+    expect(resolveKeyword('  hi  ', testNpc)).toBe('I am a test NPC.');
+  });
+
+  it('resolves "hello" as an alias for "hi"', () => {
+    expect(resolveKeyword('hello', testNpc)).toBe('I am a test NPC.');
+  });
+
+  it('resolves "HELLO" (case-insensitive alias) for "hi"', () => {
+    expect(resolveKeyword('HELLO', testNpc)).toBe('I am a test NPC.');
   });
 
   it('returns NPC-specific fallback for unknown keyword', () => {

@@ -8,7 +8,8 @@ fallbacks:
 
 dialogue:
   name: "Bramwell! Master of hedge magic and forgotten lore!"
-  who: "A scholar and mage of the old school. Not those temple fancies — REAL old magic."
+  hi: "A scholar and mage of the old school. Not those temple fancies — REAL old magic."
+  look: "A thin, bespectacled old man in robes once fine and now covered in small burn marks and ink stains. His white hair sticks out in every direction."
   magic: "Magic is the art of bending reality to will. Beautiful and dangerous in equal measure."
   spell: "I know seventeen spells. Twelve work reliably. The other five... mostly."
   spells: "I know seventeen spells. Twelve work reliably. The other five... mostly."
