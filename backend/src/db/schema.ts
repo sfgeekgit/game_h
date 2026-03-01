@@ -41,6 +41,14 @@ export async function initializeDatabase(): Promise<void> {
     )
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS npcs (
+      npc_id   INT PRIMARY KEY,
+      npc_file VARCHAR(50) UNIQUE NOT NULL,
+      image    VARCHAR(255) NULL
+    )
+  `);
+
   // Seed all area_defs if not present
   await query(`
     INSERT IGNORE INTO area_defs (area_def_id, name, type, map_id) VALUES
@@ -54,5 +62,34 @@ export async function initializeDatabase(): Promise<void> {
       (8,  'The Graveyard',      'fixed', 'graveyard'),
       (9,  'Temple of Virtue',   'fixed', 'temple'),
       (10, 'Dungeon Entrance',   'fixed', 'dungeon_entrance')
+  `);
+
+  // Seed all NPCs if not present
+  await query(`
+    INSERT IGNORE INTO npcs (npc_id, npc_file, image) VALUES
+      (142857, 'acolyte',          'NPC01.png'),
+      (293847, 'adventurer_ghost', 'NPC132A.png'),
+      (384756, 'bard',             'NPC321.png'),
+      (475869, 'blacksmith',       NULL),
+      (516273, 'dockmaster',       'NPC_25o.png'),
+      (627384, 'drunk_merchant',   'NPC_asdf.png'),
+      (738495, 'dungeon_keeper',   'NPC_ooiop.png'),
+      (849516, 'elder',            'NPCada.png'),
+      (951627, 'fisherman',        'NPCat32a.png'),
+      (162738, 'fishmonger',       'npc1.png'),
+      (273849, 'ghost',            'npc2.png'),
+      (384951, 'gravedigger',      'npc3.png'),
+      (495162, 'guard',            'npc4.png'),
+      (516384, 'hedge_wizard',     'NPC01.png'),
+      (627495, 'herbalist',        'NPC132A.png'),
+      (738516, 'innkeeper',        'NPC321.png'),
+      (849627, 'merchant',         'NPC32f1.png'),
+      (951738, 'minstrel',         'NPC_25o.png'),
+      (162849, 'pilgrim',          'NPC_asdf.png'),
+      (273951, 'priest',           'NPC_ooiop.png'),
+      (384162, 'ranger',           'NPCada.png'),
+      (495273, 'sailor',           'NPCat32a.png'),
+      (516495, 'squire',           'npc1.png'),
+      (627516, 'stranger',         'npc2.png')
   `);
 }

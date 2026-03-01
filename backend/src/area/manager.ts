@@ -15,7 +15,7 @@ import {
   dungeonEntrance,
 } from '@game_h/shared';
 import type { MapDef, AreaState, Entity } from '@game_h/shared';
-import { getPersistentArea, createArea } from '../db/helpers.js';
+import { getPersistentArea, createArea, getNpcImages } from '../db/helpers.js';
 import { isAreaLoaded, loadArea } from './store.js';
 
 const MAP_REGISTRY: Record<string, MapDef> = {
@@ -54,6 +54,7 @@ function mapDefToAreaState(map: MapDef): AreaState {
     facing: npc.facing,
     name: npc.name,
     dialogueFile: npc.dialogueFile,
+    image: npc.image,
   }));
 
   return {
@@ -96,7 +97,13 @@ export async function getOrCreatePersistentArea(
 
   if (!isAreaLoaded(areaId)) {
     const map = getMapDef(mapId);
-    const initialState = mapDefToAreaState(map);
+    const npcFiles = (map.npcs ?? []).map((npc) => npc.dialogueFile);
+    const imageMap = await getNpcImages(npcFiles);
+    const enrichedMap = {
+      ...map,
+      npcs: (map.npcs ?? []).map((npc) => ({ ...npc, image: imageMap[npc.dialogueFile] })),
+    };
+    const initialState = mapDefToAreaState(enrichedMap);
     loadArea(areaId, initialState);
   }
 

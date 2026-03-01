@@ -18,6 +18,7 @@ export interface Entity {
   facing: Direction;
   name?: string; // display name (NPCs)
   dialogueFile?: string; // YAML filename for NPC dialogue
+  image?: string; // NPC image filename (e.g. 'NPC01.png'), served from /npcs/
 }
 
 export interface NpcDef {
@@ -27,6 +28,7 @@ export interface NpcDef {
   y: number;
   facing: Direction;
   dialogueFile: string; // filename in text_content/npcs/
+  image?: string; // populated by backend from npcs DB table
 }
 
 export interface MapDef {

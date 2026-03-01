@@ -116,6 +116,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
       facing: npc.facing,
       name: npc.name,
       dialogueFile: npc.dialogueFile,
+      image: npc.image,
     })),
   }), []);
 
@@ -408,6 +409,10 @@ export function GameView({ mode, onExit }: GameViewProps) {
           const fo = facingOffset[facing];
 
           const bgColor = isNpc ? '#2d6a4f' : isMe ? '#e63946' : '#457b9d';
+          const npcImageUrl =
+            isNpc && entity.image
+              ? `${import.meta.env.BASE_URL}npcs/${entity.image}`
+              : null;
 
           return (
             <div
@@ -419,7 +424,10 @@ export function GameView({ mode, onExit }: GameViewProps) {
                 top: viewY,
                 width: tileSize,
                 height: tileSize,
-                backgroundColor: bgColor,
+                backgroundColor: npcImageUrl ? 'transparent' : bgColor,
+                backgroundImage: npcImageUrl ? `url(${npcImageUrl})` : undefined,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
                 borderRadius: isNpc ? 8 : 4,
                 boxSizing: 'border-box',
                 zIndex: 10,

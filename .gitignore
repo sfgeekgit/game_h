@@ -27,3 +27,6 @@ _setup_by_claude
 
 # Testing
 coverage/
+
+# NPC art assets (stored on server, not in repo)
+frontend/public/npcs/

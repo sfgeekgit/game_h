@@ -37,6 +37,7 @@ vi.mock('../db/helpers.js', () => ({
   updatePlayerPosition: vi.fn().mockResolvedValue(undefined),
   getAreaDefById: vi.fn().mockResolvedValue(null),
   getPersistentArea: vi.fn().mockResolvedValue(null),
+  getNpcImages: vi.fn().mockResolvedValue({}),
   createArea: vi.fn().mockResolvedValue(1),
 }));
 

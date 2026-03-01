@@ -11,6 +11,7 @@ import {
   getMapDef,
   MAP_AREA_DEF_IDS,
 } from '../area/manager.js';
+import { getNpcImages } from '../db/helpers.js';
 import { withAreaLock, readAreaState, findPlayerEntity } from '../area/store.js';
 import { updatePlayerPosition } from '../db/helpers.js';
 
@@ -27,11 +28,17 @@ const VALID_DIRECTIONS = new Set<string>(['north', 'south', 'east', 'west']);
  * Returns the map definition for the given map ID (default: town_square).
  * Used by the frontend for client-side mode.
  */
-router.get('/map', (req: Request, res: Response) => {
+router.get('/map', async (req: Request, res: Response) => {
   const mapId = (req.query.mapId as string) || 'town_square';
   try {
     const map = getMapDef(mapId);
-    res.json(map);
+    const npcFiles = (map.npcs ?? []).map((npc) => npc.dialogueFile);
+    const imageMap = await getNpcImages(npcFiles);
+    const enrichedMap = {
+      ...map,
+      npcs: (map.npcs ?? []).map((npc) => ({ ...npc, image: imageMap[npc.dialogueFile] })),
+    };
+    res.json(enrichedMap);
   } catch {
     res.status(404).json({ error: `Map not found: ${mapId}` });
   }

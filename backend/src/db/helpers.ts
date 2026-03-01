@@ -19,6 +19,12 @@ export interface PlayerRow extends RowDataPacket {
   updated_at: Date;
 }
 
+export interface NpcRow extends RowDataPacket {
+  npc_id: number;
+  npc_file: string;
+  image: string | null;
+}
+
 export interface AreaDefRow extends RowDataPacket {
   area_def_id: number;
   name: string;
@@ -89,6 +95,23 @@ export async function updatePlayerPosition(
     'UPDATE players SET last_area_id = ?, last_x = ?, last_y = ? WHERE user_id = ?',
     [areaId, x, y, userId],
   );
+}
+
+// --- NPC helpers ---
+
+/** Returns a map of npc_file -> image filename for the given npc_file keys. */
+export async function getNpcImages(npcFiles: string[]): Promise<Record<string, string>> {
+  if (npcFiles.length === 0) return {};
+  const placeholders = npcFiles.map(() => '?').join(', ');
+  const rows = await query<NpcRow[]>(
+    `SELECT npc_file, image FROM npcs WHERE npc_file IN (${placeholders})`,
+    npcFiles,
+  );
+  const result: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.image) result[row.npc_file] = row.image;
+  }
+  return result;
 }
 
 // --- Area helpers ---
