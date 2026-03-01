@@ -55,7 +55,7 @@ export const temple: MapDef = {
     [g, g, g, g, g, g, g, g, g, g, eS, g, g, g, g, g, g, g, g, g],
   ],
   npcs: [
-    { id: 'priest', name: 'Father Aldwyn', x: 10, y: 4, facing: 'south', dialogueFile: 'priest' },
-    { id: 'acolyte', name: 'Petra the Acolyte', x: 13, y: 8, facing: 'west', dialogueFile: 'acolyte' },
+    { id: 'priest', name: 'Father Aldwyn', x: 10, y: 4, dialogueFile: 'priest' },
+    { id: 'acolyte', name: 'Petra the Acolyte', x: 13, y: 8, dialogueFile: 'acolyte' },
   ] satisfies NpcDef[],
 };

@@ -114,7 +114,6 @@ export function GameView({ mode, onExit }: GameViewProps) {
       type: 'npc' as const,
       x: npc.x,
       y: npc.y,
-      facing: npc.facing,
       name: npc.name,
       dialogueFile: npc.dialogueFile,
       image: npc.image,
@@ -263,7 +262,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
   // Interact with NPC the player is facing
   const handleAction = useCallback(() => {
     if (!player || !areaState || dialogueNpc) return;
-    const { dx, dy } = directionDelta(player.facing);
+    const { dx, dy } = directionDelta(player.facing ?? 'south');
     const npc = areaState.entities.find(
       (en) => en.type === 'npc' && en.x === player.x + dx && en.y === player.y + dy,
     );
@@ -411,8 +410,6 @@ export function GameView({ mode, onExit }: GameViewProps) {
           const viewY = (entity.y - camY) * tileSize;
           const isMe = entity.id === player.id || (mode === 'frontend' && entity.id === 'local');
           const isNpc = entity.type === 'npc';
-          const facing = entity.facing ?? 'south';
-          const fo = facingOffset[facing];
 
           const bgColor = isNpc ? '#2d6a4f' : isMe ? '#e63946' : '#457b9d';
           const npcImageUrl =
@@ -444,18 +441,23 @@ export function GameView({ mode, onExit }: GameViewProps) {
                 handleTileClick(entity.x, entity.y);
               } : undefined}
             >
-              {/* Facing indicator */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: fo.top,
-                  left: fo.left,
-                  width: fo.w,
-                  height: fo.h,
-                  backgroundColor: 'rgba(255,255,255,0.7)',
-                  borderRadius: 2,
-                }}
-              />
+              {/* Facing indicator (players only) */}
+              {!isNpc && entity.facing && (() => {
+                const fo = facingOffset[entity.facing];
+                return (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: fo.top,
+                      left: fo.left,
+                      width: fo.w,
+                      height: fo.h,
+                      backgroundColor: 'rgba(255,255,255,0.7)',
+                      borderRadius: 2,
+                    }}
+                  />
+                );
+              })()}
               {/* NPC name label */}
               {isNpc && entity.name && (
                 <div

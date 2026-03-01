@@ -53,7 +53,7 @@ export const castleGates: MapDef = {
     [w, w, w, w, w, w, w, w, w, w, eS, w, w, w, w, w, w, w, w, w],
   ],
   npcs: [
-    { id: 'guard', name: 'Roland the Gate Guard', x: 10, y: 7, facing: 'south', dialogueFile: 'guard' },
-    { id: 'squire', name: 'Edmund the Squire', x: 14, y: 5, facing: 'west', dialogueFile: 'squire' },
+    { id: 'guard', name: 'Roland the Gate Guard', x: 10, y: 7, dialogueFile: 'guard' },
+    { id: 'squire', name: 'Edmund the Squire', x: 14, y: 5, dialogueFile: 'squire' },
   ] satisfies NpcDef[],
 };

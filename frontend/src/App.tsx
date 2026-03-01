@@ -36,18 +36,16 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Town Square</h1>
+        <h1>It's A Game</h1>
         {auth?.authenticated && (
           <p className="auth-status">
-            {auth.isRegistered ? 'Registered player' : 'Anonymous player'}
+            Welcome {auth.isRegistered ? 'Registered player' : 'Anonymous player'}
           </p>
         )}
       </header>
 
       <main className="welcome-screen">
         <p className="welcome-intro">
-          A small town square waits to be explored. Find the glowing exit tile to complete your
-          visit.
         </p>
 
         <div className="play-buttons">

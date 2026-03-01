@@ -56,8 +56,8 @@ export const marketplace: MapDef = {
     [g, g, g, g, g, g, g, g, g, g, g, g, g, g, g, g, g, g, g, g],
   ],
   npcs: [
-    { id: 'merchant', name: 'Bram the Merchant', x: 7, y: 4, facing: 'south', dialogueFile: 'merchant' },
-    { id: 'fishmonger', name: 'Agnes the Fishmonger', x: 13, y: 8, facing: 'west', dialogueFile: 'fishmonger' },
-    { id: 'minstrel', name: 'Lyra the Minstrel', x: 5, y: 12, facing: 'east', dialogueFile: 'minstrel' },
+    { id: 'merchant', name: 'Bram the Merchant', x: 7, y: 4, dialogueFile: 'merchant' },
+    { id: 'fishmonger', name: 'Agnes the Fishmonger', x: 13, y: 8, dialogueFile: 'fishmonger' },
+    { id: 'minstrel', name: 'Lyra the Minstrel', x: 5, y: 12, dialogueFile: 'minstrel' },
   ] satisfies NpcDef[],
 };

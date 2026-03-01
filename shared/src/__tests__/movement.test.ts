@@ -112,7 +112,7 @@ describe('applyMove — blocked cases', () => {
     const stateWithNpc = {
       ...simpleMap,
       entities: [
-        { id: 'npc1', type: 'npc' as const, x: 1, y: 0, facing: 'south' as const },
+        { id: 'npc1', type: 'npc' as const, x: 1, y: 0 },
       ],
     };
     const result = applyMove(stateWithNpc, makePlayer(0, 0), 'east');

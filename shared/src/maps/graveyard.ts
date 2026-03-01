@@ -54,7 +54,7 @@ export const graveyard: MapDef = {
     [g, g, g, g, g, g, g, eS, g, g, g, g, g, g, g, g, g, g, g, g],
   ],
   npcs: [
-    { id: 'gravedigger', name: 'Mortimer the Gravedigger', x: 5, y: 7, facing: 'south', dialogueFile: 'gravedigger' },
-    { id: 'ghost', name: 'Elara the Ghost', x: 12, y: 6, facing: 'south', dialogueFile: 'ghost' },
+    { id: 'gravedigger', name: 'Mortimer the Gravedigger', x: 5, y: 7, dialogueFile: 'gravedigger' },
+    { id: 'ghost', name: 'Elara the Ghost', x: 12, y: 6, dialogueFile: 'ghost' },
   ] satisfies NpcDef[],
 };

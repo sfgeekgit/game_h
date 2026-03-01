@@ -56,7 +56,7 @@ export const forestPath: MapDef = {
     [g, g, g, g, g, g, p, g, g, g, g, g, g, g, g, g, g, g, g, g],
   ],
   npcs: [
-    { id: 'ranger', name: 'Erin the Ranger', x: 10, y: 5, facing: 'south', dialogueFile: 'ranger' },
-    { id: 'pilgrim', name: 'Brother Oswald', x: 5, y: 10, facing: 'east', dialogueFile: 'pilgrim' },
+    { id: 'ranger', name: 'Erin the Ranger', x: 10, y: 5, dialogueFile: 'ranger' },
+    { id: 'pilgrim', name: 'Brother Oswald', x: 5, y: 10, dialogueFile: 'pilgrim' },
   ] satisfies NpcDef[],
 };

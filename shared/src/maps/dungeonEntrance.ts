@@ -53,7 +53,7 @@ export const dungeonEntrance: MapDef = {
     [w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w],
   ],
   npcs: [
-    { id: 'dungeon_keeper', name: 'Grimwald the Keeper', x: 5, y: 7, facing: 'east', dialogueFile: 'dungeon_keeper' },
-    { id: 'adventurer_ghost', name: 'Ghost of Sir Gareth', x: 10, y: 7, facing: 'north', dialogueFile: 'adventurer_ghost' },
+    { id: 'dungeon_keeper', name: 'Grimwald the Keeper', x: 5, y: 7, dialogueFile: 'dungeon_keeper' },
+    { id: 'adventurer_ghost', name: 'Ghost of Sir Gareth', x: 10, y: 7, dialogueFile: 'adventurer_ghost' },
   ] satisfies NpcDef[],
 };

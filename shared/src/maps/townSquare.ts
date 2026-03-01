@@ -65,8 +65,8 @@ export const townSquare: MapDef = {
     [g, g, g, g, g, g, g, eS, g, g, g, w, w, w, w, g, g, g, g, g],
   ],
   npcs: [
-    { id: 'blacksmith', name: 'Gareth the Blacksmith', x: 3, y: 4, facing: 'south', dialogueFile: 'blacksmith' },
-    { id: 'elder', name: 'Elder Miriam', x: 6, y: 8, facing: 'west', dialogueFile: 'elder' },
-    { id: 'stranger', name: 'Hooded Stranger', x: 11, y: 5, facing: 'south', dialogueFile: 'stranger' },
+    { id: 'blacksmith', name: 'Gareth the Blacksmith', x: 3, y: 4, dialogueFile: 'blacksmith' },
+    { id: 'elder', name: 'Elder Miriam', x: 6, y: 8, dialogueFile: 'elder' },
+    { id: 'stranger', name: 'Hooded Stranger', x: 11, y: 5, dialogueFile: 'stranger' },
   ] satisfies NpcDef[],
 };

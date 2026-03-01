@@ -51,7 +51,6 @@ function mapDefToAreaState(map: MapDef): AreaState {
     type: 'npc',
     x: npc.x,
     y: npc.y,
-    facing: npc.facing,
     name: npc.name,
     dialogueFile: npc.dialogueFile,
     image: npc.image,

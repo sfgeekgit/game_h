@@ -53,8 +53,8 @@ export const tavern: MapDef = {
     [w, w, w, w, w, w, w, w, w, w, eS, w, w, w, w, w, w, w, w, w],
   ],
   npcs: [
-    { id: 'innkeeper', name: 'Marta the Innkeeper', x: 10, y: 4, facing: 'south', dialogueFile: 'innkeeper' },
-    { id: 'bard', name: 'Aldric the Bard', x: 5, y: 12, facing: 'east', dialogueFile: 'bard' },
-    { id: 'drunk_merchant', name: 'Tobias the Merchant', x: 14, y: 10, facing: 'south', dialogueFile: 'drunk_merchant' },
+    { id: 'innkeeper', name: 'Marta the Innkeeper', x: 10, y: 4, dialogueFile: 'innkeeper' },
+    { id: 'bard', name: 'Aldric the Bard', x: 5, y: 12, dialogueFile: 'bard' },
+    { id: 'drunk_merchant', name: 'Tobias the Merchant', x: 14, y: 10, dialogueFile: 'drunk_merchant' },
   ] satisfies NpcDef[],
 };
