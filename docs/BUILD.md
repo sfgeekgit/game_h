@@ -34,6 +34,21 @@ npm run test:backend      # Backend only
 npm run test:frontend     # Frontend only
 ```
 
+## Deploy
+
+  The frontend needs to be rebuilt — just restarting the server doesn't recompile the Vite app. Run
+  cd /home/game_h
+  npm run build -w frontend
+  sudo systemctl restart game_h
+  
+After building, restart the service to serve the new code:
+
+```bash
+sudo systemctl restart game_h
+```
+
+Both frontend and backend compile `shared/` TypeScript directly — each workspace picks up shared changes at its own build time.
+
 ## Development
 
 ### Backend
