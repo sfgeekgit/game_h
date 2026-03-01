@@ -16,7 +16,7 @@ vi.mock('../db/helpers.js', () => ({
   createUser: vi.fn().mockResolvedValue(undefined),
   createPlayer: vi.fn().mockResolvedValue(undefined),
   getUserById: vi.fn().mockResolvedValue({
-    user_id: 'test-uuid',
+    user_id: 100001,
     email: null,
     password_hash: null,
     created_at: new Date(),
@@ -24,7 +24,7 @@ vi.mock('../db/helpers.js', () => ({
   getUserByEmail: vi.fn().mockResolvedValue(null),
   registerUser: vi.fn().mockResolvedValue(undefined),
   getPlayerById: vi.fn().mockResolvedValue({
-    user_id: 'test-uuid',
+    user_id: 100001,
     display_name: null,
     points: 100,
     level: 1,
@@ -75,7 +75,7 @@ vi.mock('../area/store.js', () => {
       },
     ),
     findPlayerEntity: vi.fn().mockReturnValue({
-      id: 'test-uuid',
+      id: '100001',
       type: 'player',
       x: 9,
       y: 9,

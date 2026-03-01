@@ -76,8 +76,8 @@ export async function withAreaLock<T>(
 }
 
 /** Find a player entity in the area state (no lock — read-only use). */
-export function findPlayerEntity(areaId: number, userId: string): Entity | null {
+export function findPlayerEntity(areaId: number, userId: number): Entity | null {
   const state = readAreaState(areaId);
   if (!state) return null;
-  return state.entities.find((e) => e.id === userId && e.type === 'player') ?? null;
+  return state.entities.find((e) => e.id === String(userId) && e.type === 'player') ?? null;
 }

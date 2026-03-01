@@ -63,10 +63,10 @@ router.post('/join', async (req: Request, res: Response) => {
     const spawnY = map.spawnY;
 
     await withAreaLock(areaId, (state) => {
-      const existing = state.entities.find((e) => e.id === userId && e.type === 'player');
+      const existing = state.entities.find((e) => e.id === String(userId) && e.type === 'player');
       if (!existing) {
         const playerEntity: Entity = {
-          id: userId,
+          id: String(userId),
           type: 'player',
           x: spawnX,
           y: spawnY,
@@ -79,7 +79,7 @@ router.post('/join', async (req: Request, res: Response) => {
     req.session.currentAreaId = areaId;
 
     const state = readAreaState(areaId);
-    const player = state?.entities.find((e) => e.id === userId && e.type === 'player') ?? null;
+    const player = state?.entities.find((e) => e.id === String(userId) && e.type === 'player') ?? null;
 
     res.json({ areaId, state, player });
   } catch (err) {
@@ -122,7 +122,7 @@ router.post('/move', async (req: Request, res: Response) => {
     const moveResult = applyMove(stateBefore, playerBefore, direction as Direction);
 
     await withAreaLock(areaId, (state) => {
-      const entity = state.entities.find((e) => e.id === userId && e.type === 'player');
+      const entity = state.entities.find((e) => e.id === String(userId) && e.type === 'player');
       if (entity) {
         entity.x = moveResult.newX;
         entity.y = moveResult.newY;
@@ -138,14 +138,14 @@ router.post('/move', async (req: Request, res: Response) => {
 
     if (moveResult.exitedArea) {
       await withAreaLock(areaId, (state) => {
-        const idx = state.entities.findIndex((e) => e.id === userId && e.type === 'player');
+        const idx = state.entities.findIndex((e) => e.id === String(userId) && e.type === 'player');
         if (idx !== -1) state.entities.splice(idx, 1);
       });
       req.session.currentAreaId = undefined as unknown as number;
     }
 
     const state = readAreaState(areaId);
-    const player = state?.entities.find((e) => e.id === userId && e.type === 'player') ?? null;
+    const player = state?.entities.find((e) => e.id === String(userId) && e.type === 'player') ?? null;
 
     res.json({ moveResult, state, player });
   } catch (err) {
@@ -172,7 +172,7 @@ router.get('/state', (req: Request, res: Response) => {
     return;
   }
 
-  const player = state.entities.find((e) => e.id === userId && e.type === 'player') ?? null;
+  const player = state.entities.find((e) => e.id === String(userId) && e.type === 'player') ?? null;
   res.json({ state, player });
 });
 

@@ -94,7 +94,7 @@ router.post('/login', (req: Request, res: Response, next) => {
   }
   passport.authenticate(
     'local',
-    (err: Error | null, user: { user_id: string } | false, info: { message: string }) => {
+    (err: Error | null, user: { user_id: number } | false, info: { message: string }) => {
       if (err) {
         return res.status(500).json({ error: 'Internal server error' });
       }

@@ -2,14 +2,14 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { query } from './query.js';
 
 export interface UserRow extends RowDataPacket {
-  user_id: string;
+  user_id: number;
   email: string | null;
   password_hash: string | null;
   created_at: Date;
 }
 
 export interface PlayerRow extends RowDataPacket {
-  user_id: string;
+  user_id: number;
   display_name: string | null;
   points: number;
   level: number;
@@ -35,11 +35,11 @@ export interface AreaRow extends RowDataPacket {
 
 // --- User helpers ---
 
-export async function createUser(userId: string): Promise<void> {
+export async function createUser(userId: number): Promise<void> {
   await query<ResultSetHeader>('INSERT INTO user_login (user_id) VALUES (?)', [userId]);
 }
 
-export async function getUserById(userId: string): Promise<UserRow | null> {
+export async function getUserById(userId: number): Promise<UserRow | null> {
   const rows = await query<UserRow[]>('SELECT * FROM user_login WHERE user_id = ?', [userId]);
   return rows[0] || null;
 }
@@ -50,7 +50,7 @@ export async function getUserByEmail(email: string): Promise<UserRow | null> {
 }
 
 export async function registerUser(
-  userId: string,
+  userId: number,
   email: string,
   passwordHash: string,
 ): Promise<void> {
@@ -62,16 +62,16 @@ export async function registerUser(
 
 // --- Player helpers ---
 
-export async function createPlayer(userId: string): Promise<void> {
+export async function createPlayer(userId: number): Promise<void> {
   await query<ResultSetHeader>('INSERT INTO players (user_id) VALUES (?)', [userId]);
 }
 
-export async function getPlayerById(userId: string): Promise<PlayerRow | null> {
+export async function getPlayerById(userId: number): Promise<PlayerRow | null> {
   const rows = await query<PlayerRow[]>('SELECT * FROM players WHERE user_id = ?', [userId]);
   return rows[0] || null;
 }
 
-export async function updatePlayer(userId: string, points: number, level: number): Promise<void> {
+export async function updatePlayer(userId: number, points: number, level: number): Promise<void> {
   await query<ResultSetHeader>('UPDATE players SET points = ?, level = ? WHERE user_id = ?', [
     points,
     level,
@@ -80,7 +80,7 @@ export async function updatePlayer(userId: string, points: number, level: number
 }
 
 export async function updatePlayerPosition(
-  userId: string,
+  userId: number,
   areaId: number,
   x: number,
   y: number,

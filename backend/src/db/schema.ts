@@ -3,7 +3,7 @@ import { query } from './query.js';
 export async function initializeDatabase(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS user_login (
-      user_id CHAR(36) PRIMARY KEY,
+      user_id INT PRIMARY KEY,
       email VARCHAR(255) NULL UNIQUE,
       password_hash VARCHAR(255) NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -12,7 +12,7 @@ export async function initializeDatabase(): Promise<void> {
 
   await query(`
     CREATE TABLE IF NOT EXISTS players (
-      user_id CHAR(36) PRIMARY KEY,
+      user_id INT PRIMARY KEY,
       display_name VARCHAR(100) NULL,
       points BIGINT DEFAULT 0,
       level INT DEFAULT 1,

@@ -4,10 +4,10 @@ import bcrypt from 'bcrypt';
 import { getUserByEmail, getUserById } from '../db/helpers.js';
 
 passport.serializeUser((user: Express.User, done) => {
-  done(null, (user as { user_id: string }).user_id);
+  done(null, (user as { user_id: number }).user_id);
 });
 
-passport.deserializeUser(async (userId: string, done) => {
+passport.deserializeUser(async (userId: number, done) => {
   try {
     const user = await getUserById(userId);
     done(null, user);

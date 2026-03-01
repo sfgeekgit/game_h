@@ -1,6 +1,27 @@
 import type { Request, Response, NextFunction } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { createUser, createPlayer } from '../db/helpers.js';
+
+function randomSixDigit(): number {
+  return Math.floor(Math.random() * 900000) + 100000;
+}
+
+async function generateUserId(): Promise<number> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const userId = randomSixDigit();
+    try {
+      await createUser(userId);
+      await createPlayer(userId);
+      return userId;
+    } catch (err: unknown) {
+      // MySQL error ER_DUP_ENTRY means this random ID is already taken — try another
+      if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException & { code: string }).code === 'ER_DUP_ENTRY') {
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Failed to generate unique user ID after 20 attempts');
+}
 
 export async function ensureAnonymousUser(
   req: Request,
@@ -9,9 +30,7 @@ export async function ensureAnonymousUser(
 ): Promise<void> {
   try {
     if (!req.session.userId) {
-      const userId = uuidv4();
-      await createUser(userId);
-      await createPlayer(userId);
+      const userId = await generateUserId();
       req.session.userId = userId;
       req.session.isRegistered = false;
     }
