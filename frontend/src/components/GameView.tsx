@@ -100,6 +100,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
   const movingRef = useRef(false);
+  const lastMoveTimeRef = useRef(0);
   const [dialogueNpc, setDialogueNpc] = useState<Entity | null>(null);
 
   // Build a local area state for frontend mode from the map def
@@ -220,6 +221,11 @@ export function GameView({ mode, onExit }: GameViewProps) {
   const handleMove = useCallback(
     async (direction: Direction) => {
       if (!areaState || !player || transitioning) return;
+
+      const now = Date.now();
+      const moveDelayMs = 200;
+      if (now - lastMoveTimeRef.current < moveDelayMs) return;
+      lastMoveTimeRef.current = now;
 
       if (mode === 'frontend') {
         const result = applyMove(areaState, player, direction);

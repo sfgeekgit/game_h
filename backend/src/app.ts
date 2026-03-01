@@ -6,6 +6,11 @@ import { createSessionMiddleware } from './auth/session.js';
 import passport from './auth/passport.js';
 import { ensureAnonymousUser } from './middleware/anonymous.js';
 import apiRouter from './api/routes.js';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const NPC_ADMIN_DIR = join(__dirname, '../npc_admin');
 
 export function createApp() {
   const app = express();
@@ -53,6 +58,7 @@ export function createApp() {
 
   // API routes
   app.use('/api', apiRouter);
+  app.use('/api/npc_admin', express.static(NPC_ADMIN_DIR));
 
   // Global error handler — never leak internals
   app.use(

@@ -9,6 +9,8 @@
   "scripts": {
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
+    "generate:image": "npm run generate:image -w backend --",
+    "fill_npc_img": "npm run fill_npc_img -w backend",
     "test": "npm run test -w shared && npm run test -w backend && npm run test -w frontend",
     "test:shared": "npm run test -w shared",
     "test:backend": "npm run test -w backend",
