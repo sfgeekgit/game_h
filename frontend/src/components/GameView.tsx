@@ -13,8 +13,31 @@ interface GameViewProps {
 // Viewport dimensions in tiles (odd numbers keep player near center)
 const VIEWPORT_W = 11;
 const VIEWPORT_H = 9;
-const MAX_TILE_SIZE = 44; // px — ideal tap target on mobile
+const MAX_TILE_SIZE = 60; // px — capped for mobile tap targets, larger on desktop
 const APP_PADDING = 32; // 1rem padding on each side
+
+let sharedAudioCtx: AudioContext | null = null;
+
+function playStepSound() {
+  try {
+    if (!sharedAudioCtx) sharedAudioCtx = new AudioContext();
+    const ctx = sharedAudioCtx;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(260, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.02);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.03);
+  } catch {
+    // audio not available
+  }
+}
 
 const TILE_COLORS: Record<string, string> = {
   grass: '#4a7c3f',
@@ -101,6 +124,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
   const [transitioning, setTransitioning] = useState(false);
   const movingRef = useRef(false);
   const lastMoveTimeRef = useRef(0);
+  const lastStepSoundRef = useRef(0);
   const [dialogueNpc, setDialogueNpc] = useState<Entity | null>(null);
 
   // Build a local area state for frontend mode from the map def
@@ -222,9 +246,13 @@ export function GameView({ mode, onExit }: GameViewProps) {
       if (!areaState || !player || transitioning) return;
 
       const now = Date.now();
-      const moveDelayMs = 200;
+      const moveDelayMs = 120;
       if (now - lastMoveTimeRef.current < moveDelayMs) return;
       lastMoveTimeRef.current = now;
+      if (now - lastStepSoundRef.current >= moveDelayMs * 2.5) {
+        lastStepSoundRef.current = now;
+        playStepSound();
+      }
 
       if (mode === 'frontend') {
         const result = applyMove(areaState, player, direction);
