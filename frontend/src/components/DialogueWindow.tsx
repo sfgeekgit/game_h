@@ -7,6 +7,7 @@ interface DialogueWindowProps {
   npcId: string;
   npcName: string;
   onClose: () => void;
+  img?: string;
 }
 
 interface DialogueEntry {
@@ -14,7 +15,7 @@ interface DialogueEntry {
   text: string;
 }
 
-export function DialogueWindow({ npcId, npcName, onClose }: DialogueWindowProps) {
+export function DialogueWindow({ npcId, npcName, onClose, img = undefined }: DialogueWindowProps) {
   const [npcData, setNpcData] = useState<NpcDialogueData | null>(null);
   const [fallbacks, setFallbacks] = useState<DialogueFallbacks | undefined>();
   const [entries, setEntries] = useState<DialogueEntry[]>([]);
@@ -94,6 +95,9 @@ export function DialogueWindow({ npcId, npcName, onClose }: DialogueWindowProps)
     if (e.key === 'Enter') {
       e.preventDefault();
       handleSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onClose();
     }
     // Stop game controls from firing while typing
     e.stopPropagation();
@@ -158,7 +162,6 @@ export function DialogueWindow({ npcId, npcName, onClose }: DialogueWindowProps)
             Close
           </button>
         </div>
-
         {/* Dialogue log */}
         <div
           ref={logRef}

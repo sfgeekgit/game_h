@@ -9,6 +9,7 @@ export interface NpcDialogueData {
   name: string;
   dialogue: Record<string, string>;
   fallbacks?: string[];
+  img?:string;
 }
 
 export interface DialogueFallbacks {
