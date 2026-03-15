@@ -7,8 +7,11 @@ export const SPELLS: Record<string, SpellDef> = {
     damage: 12,
     castTime: 12,
     range: 1,
-    aoeRadius: 1,
+    aoeRadius: 0,
     manaCost: 5,
+    animType: 'fire_burst',
+    animDurationMs: 680,
+    particleCount: 16,
   },
   magic_missile: {
     id: 'magic_missile',
@@ -19,6 +22,9 @@ export const SPELLS: Record<string, SpellDef> = {
     aoeRadius: 0,
     manaCost: 8,
     targetType: 'unit',
+    animType: 'arcane_bolt',
+    animDurationMs: 520,
+    particleCount: 9,
   },
   heal: {
     id: 'heal',
@@ -29,6 +35,9 @@ export const SPELLS: Record<string, SpellDef> = {
     aoeRadius: 0,
     manaCost: 10,
     targetType: 'unit',
+    animType: 'heal_pulse',
+    animDurationMs: 780,
+    particleCount: 9,
   },
   fireball: {
     id: 'fireball',
@@ -38,6 +47,9 @@ export const SPELLS: Record<string, SpellDef> = {
     range: 8,
     aoeRadius: 3,
     manaCost: 25,
+    animType: 'fire_projectile',
+    animDurationMs: 950,
+    particleCount: 9,
   },
   ice_storm: {
     id: 'ice_storm',
@@ -47,5 +59,8 @@ export const SPELLS: Record<string, SpellDef> = {
     range: 6,
     aoeRadius: 2,
     manaCost: 18,
+    animType: 'frost_storm',
+    animDurationMs: 1000,
+    particleCount: 22,
   },
 };

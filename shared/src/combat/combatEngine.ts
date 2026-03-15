@@ -170,22 +170,38 @@ function enemyStepForward(state: CombatState, deadUnit: UnitDef) {
   }
 }
 
-// --- Per-tick range check: cancel weapon charges immediately if target moves out of range ---
+// --- Per-tick range check: cancel weapon/spell charges immediately if target moves out of range ---
 
-function checkWeaponTargets(state: CombatState) {
+function checkTargetRanges(state: CombatState) {
   for (const unit of state.units) {
-    if (!unit.alive || unit.currentAction.type !== 'charging_weapon') continue;
-    const target = getUnit(state, unit.currentAction.targetId);
-    if (!target || !target.alive) continue; // let resolveActions handle target death
-    if (manhattanDistance(unit.x, unit.y, target.x, target.y) > unit.weapon.range) {
-      const wasAuto = unit.autoAttack;
-      unit.currentAction = { type: 'idle' };
-      unit.chargeProgress = 0;
-      unit.autoAttack = false;
-      addEvent(state,
-        `${unit.name}'s attack fizzles — ${target.name} out of range${wasAuto ? ' (auto off)' : ''}`,
-        { unitId: unit.id },
-      );
+    if (!unit.alive) continue;
+    const action = unit.currentAction;
+
+    if (action.type === 'charging_weapon') {
+      const target = getUnit(state, action.targetId);
+      if (!target || !target.alive) continue; // let resolveActions handle target death
+      if (manhattanDistance(unit.x, unit.y, target.x, target.y) > unit.weapon.range) {
+        const wasAuto = unit.autoAttack;
+        unit.currentAction = { type: 'idle' };
+        unit.chargeProgress = 0;
+        unit.autoAttack = false;
+        addEvent(state,
+          `${unit.name}'s attack fizzles — ${target.name} out of range${wasAuto ? ' (auto off)' : ''}`,
+          { unitId: unit.id, fizzled: true },
+        );
+      }
+    } else if (action.type === 'charging_spell' && action.targetUnitId) {
+      const spell = SPELLS[action.spellId];
+      const target = getUnit(state, action.targetUnitId);
+      if (!spell || !target || !target.alive) continue; // let resolveActions handle these
+      if (manhattanDistance(unit.x, unit.y, target.x, target.y) > spell.range) {
+        unit.currentAction = { type: 'idle' };
+        unit.chargeProgress = 0;
+        addEvent(state,
+          `${unit.name}'s ${spell.name} fizzles — ${target.name} moved out of range`,
+          { unitId: unit.id, fizzled: true },
+        );
+      }
     }
   }
 }
@@ -340,7 +356,7 @@ function resolveActions(state: CombatState) {
         const aoeFilter = spell.damage < 0 ? unit.side : undefined;
         const targets = getUnitsInAoE(state.units, action.targetX, action.targetY, spell.aoeRadius, aoeFilter);
         if (targets.length === 0) {
-          addEvent(state, `${unit.name}'s ${spell.name} hits nothing`, { unitId: unit.id });
+          addEvent(state, `${unit.name}'s ${spell.name} hits nothing`, { unitId: unit.id, fizzled: true });
         } else {
           addEvent(state, `${unit.name} casts ${spell.name}!`, { unitId: unit.id });
           for (const t of targets) {
@@ -400,7 +416,7 @@ function resolveActions(state: CombatState) {
             }
           }
         } else {
-          addEvent(state, fizzleMsg, { unitId: unit.id });
+          addEvent(state, fizzleMsg, { unitId: unit.id, fizzled: true });
         }
       }
 
@@ -430,8 +446,8 @@ export function combatTick(state: CombatState, dtMs: number, commands: PlayerCom
   // Run enemy AI for idle enemies
   runEnemyAI(newState);
 
-  // Cancel any weapon charges whose target stepped out of range this tick
-  checkWeaponTargets(newState);
+  // Cancel any weapon/spell charges whose target stepped out of range this tick
+  checkTargetRanges(newState);
 
   // Advance charge bars
   const dtSec = dtMs / 1000;

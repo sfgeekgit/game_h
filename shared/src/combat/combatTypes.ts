@@ -12,11 +12,16 @@ export interface SpellDef {
   id: string;
   name: string;
   damage: number;
-  castTime: number;    // charge time in seconds
-  range: number;       // 1 = adjacent, 999 = unlimited
-  aoeRadius: number;   // 0 = single target, N = tile radius
+  castTime: number;       // charge time in seconds
+  range: number;          // 1 = adjacent, 999 = unlimited
+  aoeRadius: number;      // 0 = single target, N = tile radius
   manaCost: number;
   targetType?: 'tile' | 'unit';  // 'unit' = tracks target by ID, not tile position
+
+  // Visual effect properties (used by frontend renderer)
+  animType: string;       // matches a key in SPELL_ANIM_REGISTRY
+  animDurationMs: number; // how long the effect plays
+  particleCount: number;  // number of particles to spawn
 }
 
 export type UnitAction =
@@ -57,6 +62,7 @@ export interface CombatEvent {
   unitId?: string;
   targetId?: string;
   damage?: number;
+  fizzled?: boolean;  // true when a charge was cancelled without resolving
 }
 
 export interface CombatState {

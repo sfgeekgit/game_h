@@ -6,8 +6,8 @@ import {
 import type {
   CombatState, PlayerCommand, UnitDef, SpellDef, UnitAction,
 } from '@game_h/shared';
-
-const TILE_SIZE = 52;
+import { TILE_SIZE, SPELL_ANIM_REGISTRY } from '../spellAnimations.js';
+import type { SpellEffectState } from '../spellAnimations.js';
 
 // --- Pure helpers (outside component) ---
 
@@ -203,6 +203,31 @@ function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected:
   objs.hpText.text = unit.alive ? `${unit.hp}/${unit.maxHp}` : '';
 }
 
+// --- Spell Effect Animations ---
+
+interface ActiveEffect extends SpellEffectState {
+  animType: string;
+  startMs: number;
+  durationMs: number;
+}
+
+function makeParticles(count: number): Array<{ x: number; y: number }> {
+  return Array.from({ length: count }, () => ({ x: Math.random(), y: Math.random() }));
+}
+
+function drawEffects(g: Graphics, effects: ActiveEffect[]): ActiveEffect[] {
+  g.clear();
+  const nowMs = performance.now();
+  const surviving: ActiveEffect[] = [];
+  for (const fx of effects) {
+    const t = (nowMs - fx.startMs) / fx.durationMs;
+    if (t >= 1) continue;
+    surviving.push(fx);
+    SPELL_ANIM_REGISTRY[fx.animType]?.(g, fx, t);
+  }
+  return surviving;
+}
+
 // --- Component ---
 
 export function CombatViewPixi({ onExit }: { onExit: () => void }) {
@@ -220,7 +245,12 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
   const pixiAppRef = useRef<Application | null>(null);
   const highlightLayerRef = useRef<Graphics | null>(null);
   const overlayLayerRef = useRef<Graphics | null>(null);
+  const effectsLayerRef = useRef<Graphics | null>(null);
   const unitObjectsRef = useRef<Map<string, UnitPixiObjects>>(new Map());
+
+  // Effect animation state
+  const activeEffectsRef = useRef<ActiveEffect[]>([]);
+  const prevUnitActionsRef = useRef<Map<string, UnitAction>>(new Map());
 
   // Refs kept in sync for use inside Pixi callbacks (no stale closures)
   const pendingSpellRef = useRef(pendingSpell);
@@ -237,6 +267,9 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
     for (const unit of state.units) {
       const objs = unitObjectsRef.current.get(unit.id);
       if (objs) updateUnitPixiObjects(objs, unit, unit.id === selectedHeroIdRef.current);
+    }
+    if (effectsLayerRef.current) {
+      activeEffectsRef.current = drawEffects(effectsLayerRef.current, activeEffectsRef.current);
     }
   }, []);
 
@@ -334,6 +367,16 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
       app.stage.addChild(overlayLayer);
       overlayLayerRef.current = overlayLayer;
 
+      // Effects layer: spell animations above everything
+      const effectsLayer = new Graphics();
+      app.stage.addChild(effectsLayer);
+      effectsLayerRef.current = effectsLayer;
+
+      // Seed prev actions for spell-fire detection
+      for (const unit of state.units) {
+        prevUnitActionsRef.current.set(unit.id, unit.currentAction);
+      }
+
       // Stage click for empty tiles
       app.stage.eventMode = 'static';
       app.stage.hitArea = new Rectangle(0, 0, width, height);
@@ -353,7 +396,9 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
       pixiAppRef.current = null;
       highlightLayerRef.current = null;
       overlayLayerRef.current = null;
+      effectsLayerRef.current = null;
       unitObjectsRef.current.clear();
+      activeEffectsRef.current = [];
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -378,6 +423,34 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
       lastFrameRef.current = timestamp;
       const commands = commandQueueRef.current.splice(0);
       const newState = combatTick(combatStateRef.current, dt, commands);
+
+      // Detect spell fires: charging_spell → idle transition spawns a visual effect (skip fizzles)
+      const thisTick = newState.tickCount - 1;
+      for (const unit of newState.units) {
+        const prevAction = prevUnitActionsRef.current.get(unit.id);
+        if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
+          const fizzled = newState.events.some(e => e.tick === thisTick && e.unitId === unit.id && e.fizzled);
+          const spell = SPELLS[prevAction.spellId];
+          if (!fizzled && spell) {
+            const casterPx = unit.x * TILE_SIZE + TILE_SIZE / 2;
+            const casterPy = unit.y * TILE_SIZE + TILE_SIZE / 2;
+            const targetUnit = prevAction.targetUnitId
+              ? newState.units.find(u => u.id === prevAction.targetUnitId) : null;
+            const targetPx = (targetUnit?.x ?? prevAction.targetX) * TILE_SIZE + TILE_SIZE / 2;
+            const targetPy = (targetUnit?.y ?? prevAction.targetY) * TILE_SIZE + TILE_SIZE / 2;
+            activeEffectsRef.current.push({
+              animType: spell.animType,
+              casterPx, casterPy, targetPx, targetPy,
+              aoeRadius: spell.aoeRadius,
+              startMs: performance.now(),
+              durationMs: spell.animDurationMs,
+              particles: makeParticles(spell.particleCount),
+            });
+          }
+        }
+        prevUnitActionsRef.current.set(unit.id, unit.currentAction);
+      }
+
       combatStateRef.current = newState;
       setCombatState(newState);
       renderToPixi(newState);
@@ -443,6 +516,11 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
     setPendingSpell(null);
     pendingSpellRef.current = null;
     lastFrameRef.current = 0;
+    activeEffectsRef.current = [];
+    prevUnitActionsRef.current.clear();
+    for (const unit of newState.units) {
+      prevUnitActionsRef.current.set(unit.id, unit.currentAction);
+    }
     renderToPixi(newState);
   }, [renderToPixi]);
 
