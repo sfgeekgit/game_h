@@ -7,7 +7,7 @@ export const SPELLS: Record<string, SpellDef> = {
     damage: 12,
     castTime: 12,
     range: 1,
-    aoeRadius: 0,
+    aoeRadius: 1,
     manaCost: 5,
   },
   magic_missile: {
@@ -18,15 +18,17 @@ export const SPELLS: Record<string, SpellDef> = {
     range: 999,
     aoeRadius: 0,
     manaCost: 8,
+    targetType: 'unit',
   },
   heal: {
     id: 'heal',
     name: 'Heal',
     damage: -15,  // negative = healing
     castTime: 15,
-    range: 999,
+    range: 2,
     aoeRadius: 0,
     manaCost: 10,
+    targetType: 'unit',
   },
   fireball: {
     id: 'fireball',

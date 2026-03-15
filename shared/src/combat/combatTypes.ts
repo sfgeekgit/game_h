@@ -16,12 +16,13 @@ export interface SpellDef {
   range: number;       // 1 = adjacent, 999 = unlimited
   aoeRadius: number;   // 0 = single target, N = tile radius
   manaCost: number;
+  targetType?: 'tile' | 'unit';  // 'unit' = tracks target by ID, not tile position
 }
 
 export type UnitAction =
   | { type: 'idle' }
   | { type: 'charging_weapon'; targetId: string }
-  | { type: 'charging_spell'; spellId: string; targetX: number; targetY: number }
+  | { type: 'charging_spell'; spellId: string; targetX: number; targetY: number; targetUnitId?: string }
   | { type: 'moving'; toX: number; toY: number };
 
 export interface UnitDef {
@@ -73,7 +74,7 @@ export interface CombatState {
 
 export type PlayerCommand =
   | { type: 'set_weapon_target'; unitId: string; targetId: string; autoAttack: boolean }
-  | { type: 'cast_spell'; unitId: string; spellId: string; targetX: number; targetY: number }
+  | { type: 'cast_spell'; unitId: string; spellId: string; targetX: number; targetY: number; targetUnitId?: string }
   | { type: 'move_unit'; unitId: string; toX: number; toY: number }
   | { type: 'cancel_action'; unitId: string }
   | { type: 'toggle_auto_attack'; unitId: string };

@@ -43,10 +43,12 @@ function findTargetsInRange(state: CombatState, unit: UnitDef): UnitDef[] {
 }
 
 function getUnitsInAoE(
-  units: UnitDef[], centerX: number, centerY: number, radius: number, side: 'hero' | 'enemy',
+  units: UnitDef[], centerX: number, centerY: number, radius: number, side?: 'hero' | 'enemy',
 ): UnitDef[] {
   return units.filter(u =>
-    u.alive && u.side === side && manhattanDistance(u.x, u.y, centerX, centerY) <= radius
+    u.alive &&
+    (side === undefined || u.side === side) &&
+    manhattanDistance(u.x, u.y, centerX, centerY) <= radius
   );
 }
 
@@ -168,6 +170,26 @@ function enemyStepForward(state: CombatState, deadUnit: UnitDef) {
   }
 }
 
+// --- Per-tick range check: cancel weapon charges immediately if target moves out of range ---
+
+function checkWeaponTargets(state: CombatState) {
+  for (const unit of state.units) {
+    if (!unit.alive || unit.currentAction.type !== 'charging_weapon') continue;
+    const target = getUnit(state, unit.currentAction.targetId);
+    if (!target || !target.alive) continue; // let resolveActions handle target death
+    if (manhattanDistance(unit.x, unit.y, target.x, target.y) > unit.weapon.range) {
+      const wasAuto = unit.autoAttack;
+      unit.currentAction = { type: 'idle' };
+      unit.chargeProgress = 0;
+      unit.autoAttack = false;
+      addEvent(state,
+        `${unit.name}'s attack fizzles — ${target.name} out of range${wasAuto ? ' (auto off)' : ''}`,
+        { unitId: unit.id },
+      );
+    }
+  }
+}
+
 // --- Process commands ---
 
 function processCommands(state: CombatState, commands: PlayerCommand[]) {
@@ -193,12 +215,24 @@ function processCommands(state: CombatState, commands: PlayerCommand[]) {
           addEvent(state, `${unit.name} doesn't have enough mana for ${spell.name}`, { unitId: unit.id });
           break;
         }
-        const dist = manhattanDistance(unit.x, unit.y, cmd.targetX, cmd.targetY);
-        if (dist > spell.range) {
+        // For unit-targeted spells, range-check against the target's current position
+        const rangeCheckX = cmd.targetUnitId
+          ? (getUnit(state, cmd.targetUnitId)?.x ?? cmd.targetX)
+          : cmd.targetX;
+        const rangeCheckY = cmd.targetUnitId
+          ? (getUnit(state, cmd.targetUnitId)?.y ?? cmd.targetY)
+          : cmd.targetY;
+        if (manhattanDistance(unit.x, unit.y, rangeCheckX, rangeCheckY) > spell.range) {
           addEvent(state, `${spell.name} target is out of range`, { unitId: unit.id });
           break;
         }
-        unit.currentAction = { type: 'charging_spell', spellId: cmd.spellId, targetX: cmd.targetX, targetY: cmd.targetY };
+        unit.currentAction = {
+          type: 'charging_spell',
+          spellId: cmd.spellId,
+          targetX: cmd.targetX,
+          targetY: cmd.targetY,
+          targetUnitId: cmd.targetUnitId,
+        };
         unit.chargeTarget = spell.castTime;
         unit.chargeProgress = 0;
         addEvent(state, `${unit.name} begins casting ${spell.name}`, { unitId: unit.id });
@@ -301,11 +335,10 @@ function resolveActions(state: CombatState) {
       // Deduct mana
       unit.mana -= spell.manaCost;
 
-      const targetSide = spell.damage >= 0 ? (unit.side === 'hero' ? 'enemy' : 'hero') : unit.side;
-
       if (spell.aoeRadius > 0) {
-        // AoE spell
-        const targets = getUnitsInAoE(state.units, action.targetX, action.targetY, spell.aoeRadius, targetSide);
+        // AoE spell — damage hits everyone (friendly fire); healing only hits allies
+        const aoeFilter = spell.damage < 0 ? unit.side : undefined;
+        const targets = getUnitsInAoE(state.units, action.targetX, action.targetY, spell.aoeRadius, aoeFilter);
         if (targets.length === 0) {
           addEvent(state, `${unit.name}'s ${spell.name} hits nothing`, { unitId: unit.id });
         } else {
@@ -327,10 +360,17 @@ function resolveActions(state: CombatState) {
           }
         }
       } else {
-        // Single target — find unit at target coords or nearest to target
+        // Single target — find by unit ID (unit-targeted spells) or by tile position
         let target: UnitDef | undefined;
-        if (spell.damage < 0) {
-          // Healing — target friendly unit at coords
+        let fizzleMsg = `${unit.name}'s ${spell.name} fizzles — no target`;
+        if (action.targetUnitId) {
+          const tracked = state.units.find(u => u.alive && u.id === action.targetUnitId);
+          if (tracked && manhattanDistance(unit.x, unit.y, tracked.x, tracked.y) > spell.range) {
+            fizzleMsg = `${unit.name}'s ${spell.name} fizzles — target moved out of range`;
+          } else {
+            target = tracked;
+          }
+        } else if (spell.damage < 0) {
           target = state.units.find(u => u.alive && u.side === unit.side && u.x === action.targetX && u.y === action.targetY);
         } else {
           target = state.units.find(u => u.alive && u.side !== unit.side && u.x === action.targetX && u.y === action.targetY);
@@ -360,7 +400,7 @@ function resolveActions(state: CombatState) {
             }
           }
         } else {
-          addEvent(state, `${unit.name}'s ${spell.name} fizzles — no target`, { unitId: unit.id });
+          addEvent(state, fizzleMsg, { unitId: unit.id });
         }
       }
 
@@ -389,6 +429,9 @@ export function combatTick(state: CombatState, dtMs: number, commands: PlayerCom
 
   // Run enemy AI for idle enemies
   runEnemyAI(newState);
+
+  // Cancel any weapon charges whose target stepped out of range this tick
+  checkWeaponTargets(newState);
 
   // Advance charge bars
   const dtSec = dtMs / 1000;

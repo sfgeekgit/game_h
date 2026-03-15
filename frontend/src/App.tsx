@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { GameView } from './components/GameView.js';
 import { CombatView } from './components/CombatView.js';
+import { CombatViewLegacy } from './components/CombatViewLegacy.js';
+import { CombatViewPixi } from './components/CombatViewPixi.js';
 import { api } from './api.js';
 
 interface AuthStatus {
@@ -9,7 +11,7 @@ interface AuthStatus {
   isRegistered?: boolean;
 }
 
-type Screen = 'welcome' | 'frontend-game' | 'backend-game' | 'combat';
+type Screen = 'welcome' | 'frontend-game' | 'backend-game' | 'combat' | 'combat-legacy' | 'combat-pixi';
 
 function App() {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
@@ -34,8 +36,12 @@ function App() {
     return <GameView mode="backend" onExit={() => setScreen('welcome')} />;
   }
 
-  if (screen === 'combat') {
-    return <CombatView onExit={() => setScreen('welcome')} />;
+  if (screen === 'combat' || screen === 'combat-legacy') {
+    return <CombatViewLegacy onExit={() => setScreen('welcome')} />;
+  }
+
+  if (screen === 'combat-pixi') {
+    return <CombatViewPixi onExit={() => setScreen('welcome')} />;
   }
 
   return (
@@ -68,9 +74,12 @@ function App() {
           <a className="multiplayer-link" onClick={() => setScreen('backend-game')}>
             Multiplayer Mode — Backend Town
           </a>
-          <button className="play-btn play-btn-frontend" onClick={() => setScreen('combat')} style={{ marginTop: '12px', backgroundColor: '#6b21a8' }}>
-            <span className="play-btn-title">Combat Prototype</span>
+          <button className="play-btn play-btn-frontend" onClick={() => setScreen('combat-pixi')} style={{ marginTop: '12px', backgroundColor: '#6b21a8' }}>
+            <span className="play-btn-title">Combat (Pixi)</span>
           </button>
+          <a className="multiplayer-link" onClick={() => setScreen('combat-legacy')}>
+            Combat Classic — original prototype
+          </a>
         </div>
 
         <p className="controls-hint">
