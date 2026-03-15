@@ -15,3 +15,4 @@ export { temple } from './maps/temple.js';
 export { dungeonEntrance } from './maps/dungeonEntrance.js';
 export type { NpcDialogueData, DialogueFallbacks } from './dialogue.js';
 export { resolveKeyword } from './dialogue.js';
+export * from './combat/index.js';

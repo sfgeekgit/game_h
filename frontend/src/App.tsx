@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GameView } from './components/GameView.js';
+import { CombatView } from './components/CombatView.js';
 import { api } from './api.js';
 
 interface AuthStatus {
@@ -8,7 +9,7 @@ interface AuthStatus {
   isRegistered?: boolean;
 }
 
-type Screen = 'welcome' | 'frontend-game' | 'backend-game';
+type Screen = 'welcome' | 'frontend-game' | 'backend-game' | 'combat';
 
 function App() {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
@@ -33,13 +34,25 @@ function App() {
     return <GameView mode="backend" onExit={() => setScreen('welcome')} />;
   }
 
+  if (screen === 'combat') {
+    return <CombatView onExit={() => setScreen('welcome')} />;
+  }
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1>It's A Game</h1>
+        <h1>Say "Hello"</h1>
+	<h3> </h3>
+	<p>Walk around. The gold squares are doors.</p>
+	<p>Say "hi" and "bye" and "job" and "look" or ask follow up questions.</p>
+
+
+	<br />
         {auth?.authenticated && (
           <p className="auth-status">
             Welcome {auth.isRegistered ? 'Registered player' : 'Anonymous player'}
+	    <br />
+	    No login needed! Will have auth someday, but for now your cookie is set.
           </p>
         )}
       </header>
@@ -55,6 +68,9 @@ function App() {
           <a className="multiplayer-link" onClick={() => setScreen('backend-game')}>
             Multiplayer Mode — Backend Town
           </a>
+          <button className="play-btn play-btn-frontend" onClick={() => setScreen('combat')} style={{ marginTop: '12px', backgroundColor: '#6b21a8' }}>
+            <span className="play-btn-title">Combat Prototype</span>
+          </button>
         </div>
 
         <p className="controls-hint">
