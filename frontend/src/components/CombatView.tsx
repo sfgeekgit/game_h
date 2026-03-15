@@ -4,7 +4,7 @@ import {
   SPELLS,
 } from '@game_h/shared';
 import type {
-  CombatState, PlayerCommand, UnitDef, SpellDef,
+  CombatState, PlayerCommand, UnitDef, SpellDef, UnitAction,
 } from '@game_h/shared';
 
 interface CombatViewProps {
@@ -23,6 +23,18 @@ const UNIT_COLORS = {
   enemy: '#c0392b',
   dead: '#555',
 };
+
+function chargeColor(actionType: UnitAction['type']): string {
+  if (actionType === 'charging_spell') return '#9333ea';
+  if (actionType === 'moving') return '#2ecc71';
+  return '#f39c12';
+}
+
+function formatTime(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
 
 export function CombatView({ onExit }: CombatViewProps) {
   const [combatState, setCombatState] = useState<CombatState>(() => createCombatState());
@@ -64,15 +76,15 @@ export function CombatView({ onExit }: CombatViewProps) {
 
   const heroes = useMemo(() => combatState.units.filter(u => u.side === 'hero'), [combatState.units]);
   const enemies = useMemo(() => combatState.units.filter(u => u.side === 'enemy'), [combatState.units]);
-  const selectedHero = heroes.find(h => h.id === selectedHeroId) ?? null;
+  const visibleEvents = useMemo(() => combatState.events.slice(-30), [combatState.events]);
+  const selectedHero = useMemo(() => heroes.find(h => h.id === selectedHeroId) ?? null, [heroes, selectedHeroId]);
 
   // Click on tile
   const handleTileClick = useCallback((x: number, y: number) => {
     if (!selectedHero || !selectedHero.alive || combatState.outcome !== 'ongoing') return;
 
-    // Check if clicking on an enemy unit
-    const enemyOnTile = combatState.units.find(u => u.alive && u.side === 'enemy' && u.x === x && u.y === y);
-    const friendlyOnTile = combatState.units.find(u => u.alive && u.side === 'hero' && u.x === x && u.y === y);
+    const enemyOnTile = enemies.find(u => u.alive && u.x === x && u.y === y);
+    const friendlyOnTile = heroes.find(u => u.alive && u.x === x && u.y === y);
 
     if (pendingSpell) {
       const dist = manhattanDistance(selectedHero.x, selectedHero.y, x, y);
@@ -110,7 +122,7 @@ export function CombatView({ onExit }: CombatViewProps) {
     if (manhattanDistance(selectedHero.x, selectedHero.y, x, y) === 1) {
       enqueue({ type: 'move_unit', unitId: selectedHero.id, toX: x, toY: y });
     }
-  }, [selectedHero, pendingSpell, combatState, enqueue]);
+  }, [selectedHero, pendingSpell, combatState.outcome, heroes, enemies, enqueue]);
 
   // Spell click
   const handleSpellClick = useCallback((spell: SpellDef) => {
@@ -139,25 +151,20 @@ export function CombatView({ onExit }: CombatViewProps) {
   }, []);
 
   // Compute highlighted tiles for spell range/aoe
+  // Deps use primitives so memo only recomputes when spell or hero position actually changes
   const highlightedTiles = useMemo(() => {
     const set = new Set<string>();
     if (!pendingSpell || !selectedHero) return set;
     for (let y = 0; y < combatState.gridHeight; y++) {
       for (let x = 0; x < combatState.gridWidth; x++) {
-        const dist = manhattanDistance(selectedHero.x, selectedHero.y, x, y);
-        if (dist <= pendingSpell.range) {
+        if (manhattanDistance(selectedHero.x, selectedHero.y, x, y) <= pendingSpell.range) {
           set.add(`${x},${y}`);
         }
       }
     }
     return set;
-  }, [pendingSpell, selectedHero, combatState.gridWidth, combatState.gridHeight]);
+  }, [pendingSpell?.id, selectedHero?.x, selectedHero?.y, combatState.gridHeight, combatState.gridWidth]);
 
-  const formatTime = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    return `${m}:${String(s % 60).padStart(2, '0')}`;
-  };
 
   return (
     <div style={styles.container}>
@@ -236,11 +243,7 @@ export function CombatView({ onExit }: CombatViewProps) {
                 ? isSelected ? UNIT_COLORS.heroSelected : UNIT_COLORS.hero
                 : UNIT_COLORS.enemy;
 
-            const ringColor = unit.currentAction.type === 'charging_spell'
-              ? '#a855f7'
-              : unit.currentAction.type === 'moving'
-                ? '#2ecc71'
-                : '#f39c12';
+            const ringColor = chargeColor(unit.currentAction.type);
             const showRing = unit.alive && unit.currentAction.type !== 'idle';
 
             // SVG ring constants — viewBox is 48x48
@@ -427,7 +430,7 @@ export function CombatView({ onExit }: CombatViewProps) {
           <div style={styles.section}>
             <div style={styles.sectionTitle}>Combat Log</div>
             <div ref={logContainerRef} style={styles.log}>
-              {combatState.events.slice(-30).map((evt, i) => (
+              {visibleEvents.map((evt, i) => (
                 <div key={i} style={styles.logEntry}>
                   {evt.message}
                 </div>
@@ -492,7 +495,7 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
         <div style={{
           ...styles.barInner,
           width: `${hero.chargeProgress * 100}%`,
-          backgroundColor: hero.currentAction.type === 'charging_spell' ? '#9333ea' : '#e67e22',
+          backgroundColor: chargeColor(hero.currentAction.type),
         }} />
         <span style={styles.barLabel}>{actionLabel} {hero.currentAction.type !== 'idle' ? `${Math.round(hero.chargeProgress * 100)}%` : ''}</span>
       </div>
@@ -506,7 +509,7 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
               onChange={(e) => { e.stopPropagation(); onToggleAuto(); }}
               style={{ marginRight: 3 }}
             />
-            Auto
+            Repeat
           </label>
           <button onClick={(e) => { e.stopPropagation(); onCancel(); }} style={styles.smallBtn}>
             Cancel
@@ -540,7 +543,7 @@ function EnemyCard({ enemy, onClick }: { enemy: UnitDef; onClick: () => void }) 
           <div style={{
             ...styles.barInner,
             width: `${enemy.chargeProgress * 100}%`,
-            backgroundColor: '#e67e22',
+            backgroundColor: chargeColor(enemy.currentAction.type),
           }} />
           <span style={styles.barLabel}>
             {enemy.currentAction.type === 'idle' ? '' : `${Math.round(enemy.chargeProgress * 100)}%`}
@@ -696,7 +699,6 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     height: '100%',
     borderRadius: 2,
-    transition: 'width 0.1s linear',
   },
   barLabel: {
     position: 'absolute',

@@ -21,9 +21,6 @@ export function manhattanDistance(x1: number, y1: number, x2: number, y2: number
   return Math.abs(x1 - x2) + Math.abs(y1 - y2);
 }
 
-function isAdjacent(a: UnitDef, b: UnitDef): boolean {
-  return manhattanDistance(a.x, a.y, b.x, b.y) === 1;
-}
 
 function getUnit(state: CombatState, id: string): UnitDef | undefined {
   return state.units.find(u => u.id === id);
@@ -36,6 +33,13 @@ function tileOccupied(state: CombatState, x: number, y: number): boolean {
 function tilePassable(state: CombatState, x: number, y: number): boolean {
   if (x < 0 || x >= state.gridWidth || y < 0 || y >= state.gridHeight) return false;
   return state.tiles[y][x].type !== 'wall';
+}
+
+function findTargetsInRange(state: CombatState, unit: UnitDef): UnitDef[] {
+  return state.units.filter(u =>
+    u.alive && u.side !== unit.side &&
+    manhattanDistance(unit.x, unit.y, u.x, u.y) <= unit.weapon.range
+  );
 }
 
 function getUnitsInAoE(
@@ -68,7 +72,7 @@ function cloneState(state: CombatState): CombatState {
     ...state,
     units: state.units.map(u => ({ ...u, weapon: { ...u.weapon }, currentAction: { ...u.currentAction } })),
     events: [...state.events],
-    randomPool: [...state.randomPool],
+    // randomPool shared by reference — entries are never mutated, only appended/read forward
   };
 }
 
@@ -105,7 +109,7 @@ function runEnemyAI(state: CombatState) {
         { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
         { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
       ];
-      let bestDir = dirs[0];
+      let bestDir: { dx: number; dy: number } | null = null;
       let bestDist = Infinity;
       for (const d of dirs) {
         const nx = enemy.x + d.dx;
@@ -117,10 +121,8 @@ function runEnemyAI(state: CombatState) {
           bestDir = d;
         }
       }
-      const toX = enemy.x + bestDir.dx;
-      const toY = enemy.y + bestDir.dy;
-      if (tilePassable(state, toX, toY) && !tileOccupied(state, toX, toY)) {
-        enemy.currentAction = { type: 'moving', toX, toY };
+      if (bestDir) {
+        enemy.currentAction = { type: 'moving', toX: enemy.x + bestDir.dx, toY: enemy.y + bestDir.dy };
         enemy.chargeTarget = MOVE_CHARGE_TIME;
         enemy.chargeProgress = 0;
       }
@@ -236,15 +238,11 @@ function resolveActions(state: CombatState) {
       if (!target || !target.alive) {
         // Target died — if auto-attack, find new target
         if (unit.autoAttack) {
-          const enemies = state.units.filter(u =>
-            u.alive && u.side !== unit.side &&
-            manhattanDistance(unit.x, unit.y, u.x, u.y) <= unit.weapon.range
-          );
-          if (enemies.length > 0) {
-            const newTarget = enemies[0];
-            unit.currentAction = { type: 'charging_weapon', targetId: newTarget.id };
+          const inRange = findTargetsInRange(state, unit);
+          if (inRange.length > 0) {
+            unit.currentAction = { type: 'charging_weapon', targetId: inRange[0].id };
             unit.chargeProgress = 0;
-            addEvent(state, `${unit.name} retargets ${newTarget.name}`, { unitId: unit.id });
+            addEvent(state, `${unit.name} retargets ${inRange[0].name}`, { unitId: unit.id });
             continue;
           }
         }
@@ -280,13 +278,9 @@ function resolveActions(state: CombatState) {
       if (unit.autoAttack && target.alive) {
         unit.chargeProgress = 0;
       } else if (unit.autoAttack && !target.alive) {
-        // Find new target in range
-        const enemies = state.units.filter(u =>
-          u.alive && u.side !== unit.side &&
-          manhattanDistance(unit.x, unit.y, u.x, u.y) <= unit.weapon.range
-        );
-        if (enemies.length > 0) {
-          unit.currentAction = { type: 'charging_weapon', targetId: enemies[0].id };
+        const inRange = findTargetsInRange(state, unit);
+        if (inRange.length > 0) {
+          unit.currentAction = { type: 'charging_weapon', targetId: inRange[0].id };
           unit.chargeProgress = 0;
         } else {
           unit.currentAction = { type: 'idle' };
