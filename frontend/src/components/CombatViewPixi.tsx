@@ -8,7 +8,14 @@ import type {
 } from '@game_h/shared';
 import { TILE_SIZE, SPELL_ANIM_REGISTRY } from '../spellAnimations.js';
 import type { SpellEffectState } from '../spellAnimations.js';
+import { WEAPON_ANIM_REGISTRY } from '../weaponAnimations.js';
 import { combatApi } from '../combatApi.js';
+
+// Merged registry for single-lookup in the hot render path
+const ANIM_REGISTRY: Record<string, typeof SPELL_ANIM_REGISTRY[string]> = {
+  ...SPELL_ANIM_REGISTRY,
+  ...WEAPON_ANIM_REGISTRY,
+};
 
 // --- Pure helpers (outside component) ---
 
@@ -225,7 +232,7 @@ function drawEffects(g: Graphics, effects: ActiveEffect[]): ActiveEffect[] {
     const t = (nowMs - fx.startMs) / fx.durationMs;
     if (t >= 1) continue;
     surviving.push(fx);
-    SPELL_ANIM_REGISTRY[fx.animType]?.(g, fx, t);
+    ANIM_REGISTRY[fx.animType]?.(g, fx, t);
   }
   return surviving;
 }
@@ -465,6 +472,27 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
         }
       }
       prevUnitActionsRef.current.set(unit.id, unit.currentAction);
+    }
+
+    // Detect weapon hits from events (event-based, since auto-attack stays in charging_weapon)
+    for (const evt of newState.events) {
+      if (evt.tick !== thisTick || evt.source !== 'weapon') continue;
+      if (!evt.unitId || !evt.targetId || !evt.damage) continue;
+      const attacker = newState.units.find(u => u.id === evt.unitId);
+      const target = newState.units.find(u => u.id === evt.targetId);
+      if (!attacker || !target) continue;
+      const { animType, animDurationMs, particleCount } = attacker.weapon;
+      activeEffectsRef.current.push({
+        animType,
+        casterPx: attacker.x * TILE_SIZE + TILE_SIZE / 2,
+        casterPy: attacker.y * TILE_SIZE + TILE_SIZE / 2,
+        targetPx: target.x * TILE_SIZE + TILE_SIZE / 2,
+        targetPy: target.y * TILE_SIZE + TILE_SIZE / 2,
+        aoeRadius: 0,
+        startMs: performance.now(),
+        durationMs: animDurationMs,
+        particles: makeParticles(particleCount),
+      });
     }
   }, []);
 

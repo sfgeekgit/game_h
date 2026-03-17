@@ -331,7 +331,7 @@ function resolveActions(state: CombatState) {
       const dmg = calcDamage(unit.weapon.damage, target.defense, roll);
       target.hp -= dmg;
       addEvent(state, `${unit.name} hits ${target.name} for ${dmg} damage`, {
-        unitId: unit.id, targetId: target.id, damage: dmg,
+        unitId: unit.id, targetId: target.id, damage: dmg, source: 'weapon',
       });
 
       if (target.hp <= 0) {

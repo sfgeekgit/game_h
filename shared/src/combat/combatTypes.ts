@@ -6,6 +6,9 @@ export interface WeaponDef {
   damage: number;
   speed: number;       // charge time in seconds
   range: number;       // 1 = melee (adjacent), 2+ = ranged
+  animType: string;       // matches a key in WEAPON_ANIM_REGISTRY
+  animDurationMs: number; // how long the effect plays
+  particleCount: number;  // number of particles to spawn
 }
 
 export interface SpellDef {
@@ -63,7 +66,8 @@ export interface CombatEvent {
   unitId?: string;
   targetId?: string;
   damage?: number;
-  fizzled?: boolean;  // true when a charge was cancelled without resolving
+  fizzled?: boolean;   // true when a charge was cancelled without resolving
+  source?: 'weapon' | 'spell';  // discriminates weapon hits from spell damage
 }
 
 export interface CombatState {
