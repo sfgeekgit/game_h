@@ -1,4 +1,4 @@
-export type UnitSide = 'hero' | 'enemy';
+export type UnitSide = 'hero' | 'enemy' | 'monster';
 
 export interface WeaponDef {
   id: string;
@@ -48,6 +48,7 @@ export interface UnitDef {
   currentAction: UnitAction;
   autoAttack: boolean;
   alive: boolean;
+  playerControlled?: boolean;  // if true, AI skips this unit (human controls it)
 }
 
 export type CombatTileType = 'floor' | 'wall';

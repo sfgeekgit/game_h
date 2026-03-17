@@ -7,5 +7,5 @@ export type {
 export { WEAPONS } from './weapons.js';
 export { SPELLS } from './spells.js';
 export { createArena } from './combatMap.js';
-export { createTestHeroes, createTestEnemies } from './combatData.js';
-export { combatTick, createCombatState, manhattanDistance } from './combatEngine.js';
+export { createTestHeroes, createTestEnemies, createPvpEnemyParty, createPvpMonsters } from './combatData.js';
+export { combatTick, createCombatState, createPvpCombatState, manhattanDistance } from './combatEngine.js';

@@ -4,10 +4,11 @@ import {
   combatTick, createCombatState, manhattanDistance, SPELLS,
 } from '@game_h/shared';
 import type {
-  CombatState, PlayerCommand, UnitDef, SpellDef, UnitAction,
+  CombatState, PlayerCommand, UnitDef, UnitSide, SpellDef, UnitAction,
 } from '@game_h/shared';
 import { TILE_SIZE, SPELL_ANIM_REGISTRY } from '../spellAnimations.js';
 import type { SpellEffectState } from '../spellAnimations.js';
+import { combatApi } from '../combatApi.js';
 
 // --- Pure helpers (outside component) ---
 
@@ -17,9 +18,10 @@ function chargeColor(actionType: UnitAction['type']): number {
   return 0xf39c12;
 }
 
-function unitBodyColor(unit: UnitDef, isSelected: boolean): number {
+function unitBodyColor(unit: UnitDef, isSelected: boolean, mySide: UnitSide): number {
   if (!unit.alive) return 0x555555;
-  if (unit.side === 'hero') return isSelected ? 0xe74c3c : 0x2980b9;
+  if (unit.side === mySide) return isSelected ? 0xe74c3c : 0x2980b9;
+  if (unit.side === 'monster') return 0x8b4513; // brown for monsters
   return 0xc0392b;
 }
 
@@ -167,7 +169,7 @@ function createUnitPixiObjects(unit: UnitDef, parent: Container): UnitPixiObject
   return { container, body, ring, label, hpText };
 }
 
-function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected: boolean): void {
+function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected: boolean, mySide: UnitSide): void {
   objs.container.x = unit.x * TILE_SIZE;
   objs.container.y = unit.y * TILE_SIZE;
   objs.container.alpha = unit.alive ? 1 : 0.4;
@@ -178,8 +180,8 @@ function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected:
   const bodyR = 18;
 
   objs.body.clear();
-  const color = unitBodyColor(unit, isSelected);
-  if (unit.side === 'hero') {
+  const color = unitBodyColor(unit, isSelected, mySide);
+  if (unit.side === mySide) {
     objs.body.circle(cx, cy, bodyR).fill({ color });
     if (isSelected) objs.body.circle(cx, cy, bodyR).stroke({ color: 0xf1c40f, width: 2 });
   } else {
@@ -230,15 +232,31 @@ function drawEffects(g: Graphics, effects: ActiveEffect[]): ActiveEffect[] {
 
 // --- Component ---
 
-export function CombatViewPixi({ onExit }: { onExit: () => void }) {
-  const [combatState, setCombatState] = useState<CombatState>(() => createCombatState());
-  const [selectedHeroId, setSelectedHeroId] = useState<string | null>('hero1');
+interface CombatViewPixiProps {
+  onExit: () => void;
+  mode?: 'local' | 'networked';
+  sessionId?: string;
+  side?: UnitSide;
+  initialState?: CombatState;
+}
+
+export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initialState }: CombatViewPixiProps) {
+  const isNetworked = mode === 'networked' && !!sessionId;
+  const mySide: UnitSide = side ?? 'hero';
+  const [combatState, setCombatState] = useState<CombatState>(() => initialState ?? createCombatState());
+  const defaultHero = isNetworked
+    ? (initialState?.units.find(u => u.side === mySide)?.id ?? null)
+    : 'hero1';
+  const [selectedHeroId, setSelectedHeroId] = useState<string | null>(defaultHero);
   const [pendingSpell, setPendingSpell] = useState<SpellDef | null>(null);
   const [paused, setPaused] = useState(false);
 
   const commandQueueRef = useRef<PlayerCommand[]>([]);
   const lastFrameRef = useRef<number>(0);
   const combatStateRef = useRef(combatState);
+  const sessionIdRef = useRef(sessionId);
+  const mySideRef = useRef(mySide);
+  const renderDirtyRef = useRef(true);
 
   // Pixi object refs
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -257,8 +275,14 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
   const selectedHeroIdRef = useRef(selectedHeroId);
 
   const enqueue = useCallback((cmd: PlayerCommand) => {
-    commandQueueRef.current.push(cmd);
-  }, []);
+    if (isNetworked) {
+      if (sessionIdRef.current) {
+        combatApi.sendCommand(sessionIdRef.current, cmd).catch(console.error);
+      }
+    } else {
+      commandQueueRef.current.push(cmd);
+    }
+  }, [isNetworked]);
 
   const renderToPixi = useCallback((state: CombatState) => {
     if (!pixiAppRef.current) return;
@@ -266,7 +290,7 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
     updateOverlays(overlayLayerRef.current!, state);
     for (const unit of state.units) {
       const objs = unitObjectsRef.current.get(unit.id);
-      if (objs) updateUnitPixiObjects(objs, unit, unit.id === selectedHeroIdRef.current);
+      if (objs) updateUnitPixiObjects(objs, unit, unit.id === selectedHeroIdRef.current, mySideRef.current);
     }
     if (effectsLayerRef.current) {
       activeEffectsRef.current = drawEffects(effectsLayerRef.current, activeEffectsRef.current);
@@ -281,8 +305,9 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
     if (!heroId || state.outcome !== 'ongoing') return;
     const hero = state.units.find(u => u.id === heroId && u.alive);
     if (!hero) return;
-    const enemyOnTile = state.units.find(u => u.side === 'enemy' && u.alive && u.x === x && u.y === y);
-    const friendlyOnTile = state.units.find(u => u.side === 'hero' && u.alive && u.x === x && u.y === y);
+    const mySideNow = mySideRef.current;
+    const enemyOnTile = state.units.find(u => u.side !== mySideNow && u.alive && u.x === x && u.y === y);
+    const friendlyOnTile = state.units.find(u => u.side === mySideNow && u.alive && u.x === x && u.y === y);
     if (spell) {
       const dist = manhattanDistance(hero.x, hero.y, x, y);
       if (dist <= spell.range) {
@@ -352,7 +377,7 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
           e.stopPropagation();
           const cur = combatStateRef.current.units.find(u => u.id === unitId);
           if (!cur) return;
-          if (cur.side === 'hero' && cur.alive && !pendingSpellRef.current) {
+          if (cur.side === mySideRef.current && cur.alive && !pendingSpellRef.current) {
             setSelectedHeroId(cur.id);
             selectedHeroIdRef.current = cur.id;
             renderToPixi(combatStateRef.current);
@@ -414,54 +439,89 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
     renderToPixi(combatStateRef.current);
   }, [selectedHeroId, renderToPixi]);
 
-  // Game loop
+  // Detect spell fires from state transition and spawn visual effects
+  const detectSpellFires = useCallback((newState: CombatState) => {
+    const thisTick = newState.tickCount - 1;
+    for (const unit of newState.units) {
+      const prevAction = prevUnitActionsRef.current.get(unit.id);
+      if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
+        const fizzled = newState.events.some(e => e.tick === thisTick && e.unitId === unit.id && e.fizzled);
+        const spell = SPELLS[prevAction.spellId];
+        if (!fizzled && spell) {
+          const casterPx = unit.x * TILE_SIZE + TILE_SIZE / 2;
+          const casterPy = unit.y * TILE_SIZE + TILE_SIZE / 2;
+          const targetUnit = prevAction.targetUnitId
+            ? newState.units.find(u => u.id === prevAction.targetUnitId) : null;
+          const targetPx = (targetUnit?.x ?? prevAction.targetX) * TILE_SIZE + TILE_SIZE / 2;
+          const targetPy = (targetUnit?.y ?? prevAction.targetY) * TILE_SIZE + TILE_SIZE / 2;
+          activeEffectsRef.current.push({
+            animType: spell.animType,
+            casterPx, casterPy, targetPx, targetPy,
+            aoeRadius: spell.aoeRadius,
+            startMs: performance.now(),
+            durationMs: spell.animDurationMs,
+            particles: makeParticles(spell.particleCount),
+          });
+        }
+      }
+      prevUnitActionsRef.current.set(unit.id, unit.currentAction);
+    }
+  }, []);
+
+  // Game loop — local mode runs combatTick locally, networked mode uses server state
   useEffect(() => {
     if (combatState.outcome !== 'ongoing' || paused) return;
     let animId: number;
-    const loop = (timestamp: number) => {
-      const dt = lastFrameRef.current ? Math.min(timestamp - lastFrameRef.current, 100) : 16;
-      lastFrameRef.current = timestamp;
-      const commands = commandQueueRef.current.splice(0);
-      const newState = combatTick(combatStateRef.current, dt, commands);
 
-      // Detect spell fires: charging_spell → idle transition spawns a visual effect (skip fizzles)
-      const thisTick = newState.tickCount - 1;
-      for (const unit of newState.units) {
-        const prevAction = prevUnitActionsRef.current.get(unit.id);
-        if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
-          const fizzled = newState.events.some(e => e.tick === thisTick && e.unitId === unit.id && e.fizzled);
-          const spell = SPELLS[prevAction.spellId];
-          if (!fizzled && spell) {
-            const casterPx = unit.x * TILE_SIZE + TILE_SIZE / 2;
-            const casterPy = unit.y * TILE_SIZE + TILE_SIZE / 2;
-            const targetUnit = prevAction.targetUnitId
-              ? newState.units.find(u => u.id === prevAction.targetUnitId) : null;
-            const targetPx = (targetUnit?.x ?? prevAction.targetX) * TILE_SIZE + TILE_SIZE / 2;
-            const targetPy = (targetUnit?.y ?? prevAction.targetY) * TILE_SIZE + TILE_SIZE / 2;
-            activeEffectsRef.current.push({
-              animType: spell.animType,
-              casterPx, casterPy, targetPx, targetPy,
-              aoeRadius: spell.aoeRadius,
-              startMs: performance.now(),
-              durationMs: spell.animDurationMs,
-              particles: makeParticles(spell.particleCount),
-            });
-          }
+    if (isNetworked) {
+      // Networked: render only when state changed or effects are playing
+      const renderLoop = (_timestamp: number) => {
+        if (renderDirtyRef.current || activeEffectsRef.current.length > 0) {
+          renderToPixi(combatStateRef.current);
+          renderDirtyRef.current = false;
         }
-        prevUnitActionsRef.current.set(unit.id, unit.currentAction);
-      }
+        animId = requestAnimationFrame(renderLoop);
+      };
+      animId = requestAnimationFrame(renderLoop);
 
-      combatStateRef.current = newState;
-      setCombatState(newState);
-      renderToPixi(newState);
+      // Poll server state, skip update if tick hasn't advanced
+      let pollInFlight = false;
+      const pollId = setInterval(() => {
+        if (!sessionIdRef.current || pollInFlight) return;
+        pollInFlight = true;
+        combatApi.getState(sessionIdRef.current).then(result => {
+          if (result.state.tickCount === combatStateRef.current.tickCount) return;
+          detectSpellFires(result.state);
+          combatStateRef.current = result.state;
+          renderDirtyRef.current = true;
+          setCombatState(result.state);
+        }).catch(console.error).finally(() => { pollInFlight = false; });
+      }, 500);
+
+      return () => {
+        cancelAnimationFrame(animId);
+        clearInterval(pollId);
+      };
+    } else {
+      // Local: full local tick loop
+      const loop = (timestamp: number) => {
+        const dt = lastFrameRef.current ? Math.min(timestamp - lastFrameRef.current, 100) : 16;
+        lastFrameRef.current = timestamp;
+        const commands = commandQueueRef.current.splice(0);
+        const newState = combatTick(combatStateRef.current, dt, commands);
+        detectSpellFires(newState);
+        combatStateRef.current = newState;
+        setCombatState(newState);
+        renderToPixi(newState);
+        animId = requestAnimationFrame(loop);
+      };
       animId = requestAnimationFrame(loop);
-    };
-    animId = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(animId);
-      lastFrameRef.current = 0;
-    };
-  }, [combatState.outcome, paused, renderToPixi]);
+      return () => {
+        cancelAnimationFrame(animId);
+        lastFrameRef.current = 0;
+      };
+    }
+  }, [combatState.outcome, paused, renderToPixi, isNetworked, detectSpellFires]);
 
   // Keyboard movement for selected hero
   useEffect(() => {
@@ -491,8 +551,8 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [combatState.events.length]);
 
-  const heroes = useMemo(() => combatState.units.filter(u => u.side === 'hero'), [combatState.units]);
-  const enemies = useMemo(() => combatState.units.filter(u => u.side === 'enemy'), [combatState.units]);
+  const heroes = useMemo(() => combatState.units.filter(u => u.side === mySide), [combatState.units, mySide]);
+  const enemies = useMemo(() => combatState.units.filter(u => u.side !== mySide), [combatState.units, mySide]);
   const visibleEvents = useMemo(() => combatState.events.slice(-30), [combatState.events]);
   const selectedHero = useMemo(() => heroes.find(h => h.id === selectedHeroId) ?? null, [heroes, selectedHeroId]);
 
@@ -507,22 +567,46 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
     if (selectedHero) enqueue({ type: 'cancel_action', unitId: selectedHero.id });
   }, [selectedHero, pendingSpell, enqueue]);
 
-  const handleRestart = useCallback(() => {
-    const newState = createCombatState();
-    combatStateRef.current = newState;
-    setCombatState(newState);
-    setSelectedHeroId('hero1');
-    selectedHeroIdRef.current = 'hero1';
+  // Leave session on unmount (networked mode)
+  useEffect(() => {
+    if (!isNetworked) return;
+    return () => {
+      if (sessionIdRef.current) {
+        combatApi.leave(sessionIdRef.current).catch(console.error);
+      }
+    };
+  }, [isNetworked]);
+
+  const resetToState = useCallback((state: CombatState, heroId: string | null) => {
+    combatStateRef.current = state;
+    setCombatState(state);
+    setSelectedHeroId(heroId);
+    selectedHeroIdRef.current = heroId;
     setPendingSpell(null);
     pendingSpellRef.current = null;
     lastFrameRef.current = 0;
     activeEffectsRef.current = [];
+    renderDirtyRef.current = true;
     prevUnitActionsRef.current.clear();
-    for (const unit of newState.units) {
+    for (const unit of state.units) {
       prevUnitActionsRef.current.set(unit.id, unit.currentAction);
     }
-    renderToPixi(newState);
+    renderToPixi(state);
   }, [renderToPixi]);
+
+  const handleRestart = useCallback(() => {
+    if (isNetworked) {
+      if (sessionIdRef.current) {
+        combatApi.leave(sessionIdRef.current).catch(console.error);
+      }
+      combatApi.create('pve').then(result => {
+        sessionIdRef.current = result.sessionId;
+        resetToState(result.state, result.state.units.find(u => u.side === result.side)?.id ?? null);
+      }).catch(console.error);
+      return;
+    }
+    resetToState(createCombatState(), 'hero1');
+  }, [resetToState, isNetworked]);
 
   return (
     <div style={styles.container}>
@@ -537,15 +621,21 @@ export function CombatViewPixi({ onExit }: { onExit: () => void }) {
         <button style={styles.exitBtn} onClick={onExit}>Quit</button>
       </div>
 
-      {combatState.outcome !== 'ongoing' && (
-        <div style={{
-          ...styles.outcomeBanner,
-          backgroundColor: combatState.outcome === 'victory' ? '#27ae60' : '#c0392b',
-        }}>
-          {combatState.outcome === 'victory' ? 'VICTORY!' : 'DEFEAT'}
-          <button style={styles.restartBtn} onClick={handleRestart}>Fight Again</button>
-        </div>
-      )}
+      {combatState.outcome !== 'ongoing' && (() => {
+        // Outcome is from hero perspective; flip for enemy player
+        const iWon = mySide === 'hero'
+          ? combatState.outcome === 'victory'
+          : combatState.outcome === 'defeat';
+        return (
+          <div style={{
+            ...styles.outcomeBanner,
+            backgroundColor: iWon ? '#27ae60' : '#c0392b',
+          }}>
+            {iWon ? 'VICTORY!' : 'DEFEAT'}
+            <button style={styles.restartBtn} onClick={handleRestart}>Fight Again</button>
+          </div>
+        );
+      })()}
 
       {pendingSpell && (
         <div style={styles.pendingBanner}>

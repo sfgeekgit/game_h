@@ -1,8 +1,8 @@
 import type {
-  CombatState, CombatEvent, CombatTile, PlayerCommand, UnitDef, UnitAction,
+  CombatState, CombatEvent, CombatTile, PlayerCommand, UnitDef, UnitSide, UnitAction,
 } from './combatTypes.js';
 import { SPELLS } from './spells.js';
-import { createTestHeroes, createTestEnemies } from './combatData.js';
+import { createTestHeroes, createTestEnemies, createPvpEnemyParty, createPvpMonsters } from './combatData.js';
 import { createArena } from './combatMap.js';
 
 const MOVE_CHARGE_TIME = 3.0; // seconds to move one tile
@@ -43,7 +43,7 @@ function findTargetsInRange(state: CombatState, unit: UnitDef): UnitDef[] {
 }
 
 function getUnitsInAoE(
-  units: UnitDef[], centerX: number, centerY: number, radius: number, side?: 'hero' | 'enemy',
+  units: UnitDef[], centerX: number, centerY: number, radius: number, side?: UnitSide,
 ): UnitDef[] {
   return units.filter(u =>
     u.alive &&
@@ -58,6 +58,17 @@ function addEvent(state: CombatState, message: string, extra?: Partial<CombatEve
   if (state.events.length > 200) {
     state.events = state.events.slice(-100);
   }
+}
+
+function resetToIdle(unit: UnitDef) {
+  unit.currentAction = { type: 'idle' };
+  unit.chargeProgress = 0;
+}
+
+function makeRandomPool(size = 500): number[] {
+  const pool: number[] = [];
+  for (let i = 0; i < size; i++) pool.push(Math.random());
+  return pool;
 }
 
 function calcDamage(baseDamage: number, defense: number, roll: number): number {
@@ -78,35 +89,48 @@ function cloneState(state: CombatState): CombatState {
   };
 }
 
-// --- Enemy AI ---
+// --- AI ---
 
-function runEnemyAI(state: CombatState) {
-  const enemies = state.units.filter(u => u.alive && u.side === 'enemy');
-  const heroes = state.units.filter(u => u.alive && u.side === 'hero');
-  if (heroes.length === 0) return;
+/** Find the nearest valid target for an AI unit.
+ *  - 'enemy' side AI targets heroes (classic PVE behavior)
+ *  - 'monster' side AI targets the nearest non-monster (attacks both heroes and enemies)
+ */
+function findAITargets(state: CombatState, aiUnit: UnitDef): UnitDef[] {
+  if (aiUnit.side === 'monster') {
+    return state.units.filter(u => u.alive && u.side !== 'monster');
+  }
+  // enemy-side AI targets heroes
+  return state.units.filter(u => u.alive && u.side === 'hero');
+}
 
-  for (const enemy of enemies) {
-    if (enemy.currentAction.type !== 'idle') continue;
+function runAI(state: CombatState) {
+  // AI runs for: non-playerControlled enemies AND all monsters
+  const aiUnits = state.units.filter(u => u.alive && !u.playerControlled && (u.side === 'enemy' || u.side === 'monster'));
 
-    // Find nearest hero
+  for (const unit of aiUnits) {
+    if (unit.currentAction.type !== 'idle') continue;
+
+    const targets = findAITargets(state, unit);
+    if (targets.length === 0) continue;
+
+    // Find nearest target
     let nearest: UnitDef | null = null;
     let nearestDist = Infinity;
-    for (const hero of heroes) {
-      const d = manhattanDistance(enemy.x, enemy.y, hero.x, hero.y);
+    for (const t of targets) {
+      const d = manhattanDistance(unit.x, unit.y, t.x, t.y);
       if (d < nearestDist) {
         nearestDist = d;
-        nearest = hero;
+        nearest = t;
       }
     }
     if (!nearest) continue;
 
-    if (nearestDist <= enemy.weapon.range) {
-      // Attack
-      enemy.currentAction = { type: 'charging_weapon', targetId: nearest.id };
-      enemy.chargeTarget = enemy.weapon.speed;
-      enemy.chargeProgress = 0;
+    if (nearestDist <= unit.weapon.range) {
+      unit.currentAction = { type: 'charging_weapon', targetId: nearest.id };
+      unit.chargeTarget = unit.weapon.speed;
+      unit.chargeProgress = 0;
     } else {
-      // Move toward nearest hero — pick best adjacent tile
+      // Move toward nearest target
       const dirs = [
         { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
         { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
@@ -114,8 +138,8 @@ function runEnemyAI(state: CombatState) {
       let bestDir: { dx: number; dy: number } | null = null;
       let bestDist = Infinity;
       for (const d of dirs) {
-        const nx = enemy.x + d.dx;
-        const ny = enemy.y + d.dy;
+        const nx = unit.x + d.dx;
+        const ny = unit.y + d.dy;
         if (!tilePassable(state, nx, ny) || tileOccupied(state, nx, ny)) continue;
         const dist = manhattanDistance(nx, ny, nearest.x, nearest.y);
         if (dist < bestDist) {
@@ -124,9 +148,9 @@ function runEnemyAI(state: CombatState) {
         }
       }
       if (bestDir) {
-        enemy.currentAction = { type: 'moving', toX: enemy.x + bestDir.dx, toY: enemy.y + bestDir.dy };
-        enemy.chargeTarget = MOVE_CHARGE_TIME;
-        enemy.chargeProgress = 0;
+        unit.currentAction = { type: 'moving', toX: unit.x + bestDir.dx, toY: unit.y + bestDir.dy };
+        unit.chargeTarget = MOVE_CHARGE_TIME;
+        unit.chargeProgress = 0;
       }
     }
   }
@@ -143,7 +167,7 @@ function enemyStepForward(state: CombatState, deadUnit: UnitDef) {
   const avgY = heroes.reduce((s, h) => s + h.y, 0) / heroes.length;
 
   const neighbors = state.units.filter(u =>
-    u.alive && u.side === 'enemy' &&
+    u.alive && u.side === deadUnit.side &&
     manhattanDistance(u.x, u.y, deadUnit.x, deadUnit.y) === 1 &&
     u.currentAction.type === 'idle'
   );
@@ -164,8 +188,7 @@ function enemyStepForward(state: CombatState, deadUnit: UnitDef) {
   if (bestNeighbor) {
     bestNeighbor.x = deadUnit.x;
     bestNeighbor.y = deadUnit.y;
-    bestNeighbor.currentAction = { type: 'idle' };
-    bestNeighbor.chargeProgress = 0;
+    resetToIdle(bestNeighbor);
     addEvent(state, `${bestNeighbor.name} steps forward`, { unitId: bestNeighbor.id });
   }
 }
@@ -182,8 +205,7 @@ function checkTargetRanges(state: CombatState) {
       if (!target || !target.alive) continue; // let resolveActions handle target death
       if (manhattanDistance(unit.x, unit.y, target.x, target.y) > unit.weapon.range) {
         const wasAuto = unit.autoAttack;
-        unit.currentAction = { type: 'idle' };
-        unit.chargeProgress = 0;
+        resetToIdle(unit);
         unit.autoAttack = false;
         addEvent(state,
           `${unit.name}'s attack fizzles — ${target.name} out of range${wasAuto ? ' (auto off)' : ''}`,
@@ -195,8 +217,7 @@ function checkTargetRanges(state: CombatState) {
       const target = getUnit(state, action.targetUnitId);
       if (!spell || !target || !target.alive) continue; // let resolveActions handle these
       if (manhattanDistance(unit.x, unit.y, target.x, target.y) > spell.range) {
-        unit.currentAction = { type: 'idle' };
-        unit.chargeProgress = 0;
+        resetToIdle(unit);
         addEvent(state,
           `${unit.name}'s ${spell.name} fizzles — ${target.name} moved out of range`,
           { unitId: unit.id, fizzled: true },
@@ -264,8 +285,7 @@ function processCommands(state: CombatState, commands: PlayerCommand[]) {
         break;
       }
       case 'cancel_action':
-        unit.currentAction = { type: 'idle' };
-        unit.chargeProgress = 0;
+        resetToIdle(unit);
         break;
       case 'toggle_auto_attack':
         unit.autoAttack = !unit.autoAttack;
@@ -296,16 +316,14 @@ function resolveActions(state: CombatState) {
             continue;
           }
         }
-        unit.currentAction = { type: 'idle' };
-        unit.chargeProgress = 0;
+        resetToIdle(unit);
         continue;
       }
 
       const dist = manhattanDistance(unit.x, unit.y, target.x, target.y);
       if (dist > unit.weapon.range) {
         addEvent(state, `${unit.name}'s target is out of range`, { unitId: unit.id });
-        unit.currentAction = { type: 'idle' };
-        unit.chargeProgress = 0;
+        resetToIdle(unit);
         continue;
       }
 
@@ -319,7 +337,7 @@ function resolveActions(state: CombatState) {
       if (target.hp <= 0) {
         target.hp = 0;
         target.alive = false;
-        target.currentAction = { type: 'idle' };
+        resetToIdle(target);
         addEvent(state, `${target.name} is defeated!`, { unitId: target.id });
         enemyStepForward(state, target);
       }
@@ -333,18 +351,15 @@ function resolveActions(state: CombatState) {
           unit.currentAction = { type: 'charging_weapon', targetId: inRange[0].id };
           unit.chargeProgress = 0;
         } else {
-          unit.currentAction = { type: 'idle' };
-          unit.chargeProgress = 0;
+          resetToIdle(unit);
         }
       } else {
-        unit.currentAction = { type: 'idle' };
-        unit.chargeProgress = 0;
+        resetToIdle(unit);
       }
     } else if (action.type === 'charging_spell') {
       const spell = SPELLS[action.spellId];
       if (!spell) {
-        unit.currentAction = { type: 'idle' };
-        unit.chargeProgress = 0;
+        resetToIdle(unit);
         continue;
       }
 
@@ -369,7 +384,7 @@ function resolveActions(state: CombatState) {
             if (t.hp <= 0) {
               t.hp = 0;
               t.alive = false;
-              t.currentAction = { type: 'idle' };
+              resetToIdle(t);
               addEvent(state, `  ${t.name} is defeated!`, { unitId: t.id });
               if (t.side === 'enemy') enemyStepForward(state, t);
             }
@@ -410,7 +425,7 @@ function resolveActions(state: CombatState) {
             if (target.hp <= 0) {
               target.hp = 0;
               target.alive = false;
-              target.currentAction = { type: 'idle' };
+              resetToIdle(target);
               addEvent(state, `${target.name} is defeated!`, { unitId: target.id });
               if (target.side === 'enemy') enemyStepForward(state, target);
             }
@@ -420,15 +435,13 @@ function resolveActions(state: CombatState) {
         }
       }
 
-      unit.currentAction = { type: 'idle' };
-      unit.chargeProgress = 0;
+      resetToIdle(unit);
     } else if (action.type === 'moving') {
       if (tilePassable(state, action.toX, action.toY) && !tileOccupied(state, action.toX, action.toY)) {
         unit.x = action.toX;
         unit.y = action.toY;
       }
-      unit.currentAction = { type: 'idle' };
-      unit.chargeProgress = 0;
+      resetToIdle(unit);
     }
   }
 }
@@ -444,7 +457,7 @@ export function combatTick(state: CombatState, dtMs: number, commands: PlayerCom
   processCommands(newState, commands);
 
   // Run enemy AI for idle enemies
-  runEnemyAI(newState);
+  runAI(newState);
 
   // Cancel any weapon/spell charges whose target stepped out of range this tick
   checkTargetRanges(newState);
@@ -460,7 +473,7 @@ export function combatTick(state: CombatState, dtMs: number, commands: PlayerCom
   // Resolve completed actions
   resolveActions(newState);
 
-  // Check outcome
+  // Check outcome (monsters don't count — they're environmental hazards)
   const heroesAlive = newState.units.some(u => u.alive && u.side === 'hero');
   const enemiesAlive = newState.units.some(u => u.alive && u.side === 'enemy');
   if (!heroesAlive) {
@@ -484,12 +497,6 @@ export function createCombatState(): CombatState {
   const heroes = createTestHeroes();
   const enemies = createTestEnemies();
 
-  // Pre-roll random pool
-  const randomPool: number[] = [];
-  for (let i = 0; i < 500; i++) {
-    randomPool.push(Math.random());
-  }
-
   return {
     gridWidth: arena.width,
     gridHeight: arena.height,
@@ -499,7 +506,28 @@ export function createCombatState(): CombatState {
     tickCount: 0,
     elapsedMs: 0,
     outcome: 'ongoing',
-    randomPool,
+    randomPool: makeRandomPool(),
+    randomIndex: 0,
+  };
+}
+
+/** PVP arena: hero party (left) vs enemy party (right) with NPC monsters in the middle */
+export function createPvpCombatState(): CombatState {
+  const arena = createArena();
+  const heroes = createTestHeroes();
+  const enemyParty = createPvpEnemyParty();
+  const monsters = createPvpMonsters();
+
+  return {
+    gridWidth: arena.width,
+    gridHeight: arena.height,
+    tiles: arena.tiles,
+    units: [...heroes, ...enemyParty, ...monsters],
+    events: [{ tick: 0, message: 'PVP Arena — Fight!' }],
+    tickCount: 0,
+    elapsedMs: 0,
+    outcome: 'ongoing',
+    randomPool: makeRandomPool(),
     randomIndex: 0,
   };
 }
