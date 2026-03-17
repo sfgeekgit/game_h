@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { GameView } from './components/GameView.js';
-import { CombatView } from './components/CombatView.js';
-import { CombatViewLegacy } from './components/CombatViewLegacy.js';
 import { CombatViewPixi } from './components/CombatViewPixi.js';
 import { api } from './api.js';
 import { combatApi } from './combatApi.js';
@@ -13,7 +11,7 @@ interface AuthStatus {
   isRegistered?: boolean;
 }
 
-type Screen = 'welcome' | 'frontend-game' | 'backend-game' | 'combat' | 'combat-legacy' | 'combat-pixi' | 'combat-server' | 'pvp-waiting';
+type Screen = 'welcome' | 'frontend-game' | 'backend-game' | 'combat-pixi' | 'combat-server' | 'pvp-waiting';
 
 function App() {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
@@ -43,10 +41,6 @@ function App() {
 
   if (screen === 'backend-game') {
     return <GameView mode="backend" onExit={() => setScreen('welcome')} />;
-  }
-
-  if (screen === 'combat' || screen === 'combat-legacy') {
-    return <CombatViewLegacy onExit={() => setScreen('welcome')} />;
   }
 
   if (screen === 'combat-pixi') {
@@ -155,10 +149,6 @@ function App() {
               <span className="play-btn-title" style={{ fontSize: 13 }}>PVP Combat Player 2</span>
             </button>
           </div>
-
-          <a className="multiplayer-link" onClick={() => setScreen('combat-legacy')}>
-            Combat Classic — original prototype
-          </a>
         </div>
 
         <p className="controls-hint">
