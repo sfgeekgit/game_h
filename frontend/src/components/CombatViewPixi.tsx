@@ -293,6 +293,9 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   const activeEffectsRef = useRef<ActiveEffect[]>([]);
   const prevUnitActionsRef = useRef<Map<string, UnitAction>>(new Map());
 
+  // Move queue: up to 2 pending moves per unit (beyond current move)
+  const moveQueueRef = useRef<Map<string, Array<{ toX: number; toY: number }>>>(new Map());
+
   // Refs kept in sync for use inside Pixi callbacks (no stale closures)
   const pendingSpellRef = useRef(pendingSpell);
   const selectedHeroIdRef = useRef(selectedHeroId);
@@ -340,10 +343,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
           const unitOnTile = state.units.find(u => u.alive && u.x === x && u.y === y);
           if (unitOnTile) {
             enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: x, targetY: y, targetUnitId: unitOnTile.id });
+            moveQueueRef.current.delete(hero.id);
           }
           // If no unit on tile, cancel targeting without casting
         } else {
           enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: x, targetY: y });
+          moveQueueRef.current.delete(hero.id);
         }
       }
       setPendingSpell(null);
@@ -352,6 +357,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     }
     if (enemyOnTile) {
       enqueue({ type: 'set_weapon_target', unitId: hero.id, targetId: enemyOnTile.id, autoAttack: hero.autoAttack });
+      moveQueueRef.current.delete(hero.id);
       return;
     }
     if (friendlyOnTile && friendlyOnTile.id !== hero.id) {
@@ -359,8 +365,20 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       selectedHeroIdRef.current = friendlyOnTile.id;
       return;
     }
-    if (manhattanDistance(hero.x, hero.y, x, y) === 1) {
-      enqueue({ type: 'move_unit', unitId: hero.id, toX: x, toY: y });
+    // Movement: use effective position (end of current move + queued moves) for adjacency check
+    const queue = moveQueueRef.current.get(hero.id) ?? [];
+    const effX = queue.length > 0 ? queue[queue.length - 1].toX
+      : hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
+    const effY = queue.length > 0 ? queue[queue.length - 1].toY
+      : hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
+    if (manhattanDistance(effX, effY, x, y) === 1) {
+      if (hero.currentAction.type === 'moving' || queue.length > 0) {
+        if (queue.length < 2) {
+          moveQueueRef.current.set(hero.id, [...queue, { toX: x, toY: y }]);
+        }
+      } else {
+        enqueue({ type: 'move_unit', unitId: hero.id, toX: x, toY: y });
+      }
     }
   }, [enqueue]);
 
@@ -464,12 +482,23 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     renderToPixi(combatStateRef.current);
   }, [selectedHeroId, renderToPixi]);
 
-  // Detect spell fires from state transition and spawn visual effects
+  // Detect spell fires from state transition and spawn visual effects; also drain move queue
   const detectSpellFires = useCallback((newState: CombatState) => {
     const thisTick = newState.tickCount - 1;
     const ts = tileSizeRef.current;
     for (const unit of newState.units) {
       const prevAction = prevUnitActionsRef.current.get(unit.id);
+
+      // Drain move queue when a unit finishes moving
+      if (prevAction?.type === 'moving' && unit.currentAction.type === 'idle' && unit.side === mySideRef.current) {
+        const queue = moveQueueRef.current.get(unit.id) ?? [];
+        if (queue.length > 0) {
+          const [next, ...rest] = queue;
+          moveQueueRef.current.set(unit.id, rest);
+          enqueue({ type: 'move_unit', unitId: unit.id, toX: next.toX, toY: next.toY });
+        }
+      }
+
       if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
         const fizzled = newState.events.some(e => e.tick === thisTick && e.unitId === unit.id && e.fizzled);
         const spell = SPELLS[prevAction.spellId];
@@ -515,7 +544,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
         particles: makeParticles(particleCount),
       });
     }
-  }, []);
+  }, [enqueue]);
 
   // Game loop — local mode runs combatTick locally, networked mode uses server state
   useEffect(() => {
@@ -587,7 +616,30 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') dx = 1;
       else return;
       e.preventDefault();
-      enqueue({ type: 'move_unit', unitId: hero.id, toX: hero.x + dx, toY: hero.y + dy });
+      // If hero is idle and target tile has an enemy, treat as attack
+      const toX = hero.x + dx;
+      const toY = hero.y + dy;
+      if (hero.currentAction.type !== 'moving') {
+        const enemy = state.units.find(u => u.side !== mySideRef.current && u.alive && u.x === toX && u.y === toY);
+        if (enemy) {
+          enqueue({ type: 'set_weapon_target', unitId: hero.id, targetId: enemy.id, autoAttack: hero.autoAttack });
+          moveQueueRef.current.delete(hero.id);
+          return;
+        }
+      }
+      // Queue if mid-move, otherwise send immediately
+      const queue = moveQueueRef.current.get(hero.id) ?? [];
+      const effX = queue.length > 0 ? queue[queue.length - 1].toX
+        : hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
+      const effY = queue.length > 0 ? queue[queue.length - 1].toY
+        : hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
+      if (hero.currentAction.type === 'moving' || queue.length > 0) {
+        if (queue.length < 2) {
+          moveQueueRef.current.set(hero.id, [...queue, { toX: effX + dx, toY: effY + dy }]);
+        }
+      } else {
+        enqueue({ type: 'move_unit', unitId: hero.id, toX, toY });
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -607,6 +659,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
 
   const handleSpellClick = useCallback((spell: SpellDef) => {
     if (!selectedHero?.alive) return;
+    // Re-clicking the active spell cancels targeting
+    if (pendingSpellRef.current?.id === spell.id) {
+      setPendingSpell(null);
+      pendingSpellRef.current = null;
+      return;
+    }
     if (selectedHero.mana < spell.manaCost) return;
     setPendingSpell(spell);
   }, [selectedHero]);
@@ -621,6 +679,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     pendingSpellRef.current = null;
     lastFrameRef.current = 0;
     activeEffectsRef.current = [];
+    moveQueueRef.current.clear();
     renderDirtyRef.current = true;
     prevUnitActionsRef.current.clear();
     for (const unit of state.units) {
@@ -739,7 +798,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
                 isSelected={hero.id === selectedHeroId}
                 onSelect={() => { setSelectedHeroId(hero.id); setPendingSpell(null); }}
                 onToggleAuto={() => enqueue({ type: 'toggle_auto_attack', unitId: hero.id })}
-                onCancel={() => enqueue({ type: 'cancel_action', unitId: hero.id })}
+                onCancel={() => { enqueue({ type: 'cancel_action', unitId: hero.id }); moveQueueRef.current.delete(hero.id); }}
               />
             ))}
           </div>
@@ -830,7 +889,7 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
         <div style={styles.unitControls}>
           <label style={{ fontSize: '10px', cursor: 'pointer', color: '#aaa' }}>
             <input type="checkbox" checked={hero.autoAttack} onChange={(e) => { e.stopPropagation(); onToggleAuto(); }} style={{ marginRight: 3 }} />
-            Repeat
+            Repeat Attack
           </label>
           <button onClick={(e) => { e.stopPropagation(); onCancel(); }} style={styles.smallBtn}>Cancel</button>
         </div>

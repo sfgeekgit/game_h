@@ -285,6 +285,10 @@ function processCommands(state: CombatState, commands: PlayerCommand[]) {
         break;
       }
       case 'cancel_action':
+        if (unit.currentAction.type === 'charging_spell') {
+          const spell = SPELLS[unit.currentAction.spellId];
+          addEvent(state, `${unit.name}'s ${spell?.name ?? 'spell'} cancelled`, { unitId: unit.id, fizzled: true });
+        }
         resetToIdle(unit);
         break;
       case 'toggle_auto_attack':
