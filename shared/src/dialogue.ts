@@ -37,22 +37,27 @@ function matchWord(word: string, keys: string[]): string | null {
   return null;
 }
 
+export interface ResolveKeywordResult {
+  text: string;
+  isFallback: boolean;
+}
+
 export function resolveKeyword(
   input: string,
   npcData: NpcDialogueData,
   genericFallbacks?: DialogueFallbacks,
-): string {
+): ResolveKeywordResult {
   const keys = Object.keys(npcData.dialogue);
   const words = input.toLowerCase().trim().split(/\W+/).filter(Boolean);
-  if (!words.length) return DEFAULT_FALLBACK;
+  if (!words.length) return { text: DEFAULT_FALLBACK, isFallback: true };
 
   for (const word of words) {
     const matched = matchWord(KEYWORD_ALIASES[word] ?? word, keys);
-    if (matched) return npcData.dialogue[matched];
+    if (matched) return { text: npcData.dialogue[matched], isFallback: false };
   }
 
   // Use NPC-specific fallbacks first, then generic, then hardcoded default
   const fallbacks =
     npcData.fallbacks ?? genericFallbacks?.generic_fallbacks ?? [DEFAULT_FALLBACK];
-  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  return { text: fallbacks[Math.floor(Math.random() * fallbacks.length)], isFallback: true };
 }

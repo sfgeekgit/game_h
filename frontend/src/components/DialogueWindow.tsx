@@ -13,6 +13,7 @@ interface DialogueWindowProps {
 interface DialogueEntry {
   speaker: 'player' | 'npc';
   text: string;
+  isFallback?: boolean;
 }
 
 export function DialogueWindow({ npcId, npcName, onClose, img = undefined }: DialogueWindowProps) {
@@ -83,11 +84,11 @@ export function DialogueWindow({ npcId, npcName, onClose, img = undefined }: Dia
       return;
     }
 
-    const response = resolveKeyword(keyword, npcData, fallbacks);
+    const { text, isFallback } = resolveKeyword(keyword, npcData, fallbacks);
     setEntries((prev) => [
       ...prev,
       { speaker: 'player', text: keyword },
-      { speaker: 'npc', text: response },
+      { speaker: 'npc', text, isFallback },
     ]);
   };
 
@@ -114,8 +115,9 @@ export function DialogueWindow({ npcId, npcName, onClose, img = undefined }: Dia
         bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.6)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
+        paddingTop: 60,
         zIndex: 100,
       }}
     >
@@ -139,17 +141,19 @@ export function DialogueWindow({ npcId, npcName, onClose, img = undefined }: Dia
           style={{
             padding: '8px 12px',
             borderBottom: '1px solid #c8a96e',
+            position: 'relative',
             display: 'flex',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
             alignItems: 'center',
+            gap: 6,
           }}
         >
-          <span style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#c8a96e' }}>
-            {npcName}
-          </span>
           <button
             onClick={onClose}
             style={{
+              position: 'absolute',
+              top: 8,
+              right: 12,
               background: 'none',
               border: '1px solid #c8a96e',
               color: '#c8a96e',
@@ -161,6 +165,16 @@ export function DialogueWindow({ npcId, npcName, onClose, img = undefined }: Dia
           >
             Close
           </button>
+          <span style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#c8a96e' }}>
+            {npcName}
+          </span>
+          {img && (
+            <img
+              src={img}
+              alt={npcName}
+              style={{ width: 144, height: 144, borderRadius: 6, objectFit: 'cover' }}
+            />
+          )}
         </div>
         {/* Dialogue log */}
         <div
@@ -176,11 +190,11 @@ export function DialogueWindow({ npcId, npcName, onClose, img = undefined }: Dia
           {loading && <div style={{ color: '#888' }}>Loading...</div>}
           {error && <div style={{ color: '#e63946' }}>{error}</div>}
           {entries.map((entry, i) => (
-            <div key={i} style={{ marginBottom: 6 }}>
+            <div key={i} style={{ marginBottom: 6, fontSize: '1.4em' }}>
               {entry.speaker === 'player' ? (
                 <span style={{ color: '#88c0d0' }}>&gt; {entry.text}</span>
               ) : (
-                <span style={{ color: '#e0d6c2' }}>{entry.text}</span>
+                <span style={{ color: entry.isFallback ? '#8a8070' : '#e0d6c2' }}>{entry.text}</span>
               )}
             </div>
           ))}

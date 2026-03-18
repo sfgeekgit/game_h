@@ -55,6 +55,9 @@ function getFacingOffset(tileSize: number): Record<Direction, { top: number; lef
     west: { top: 4, left: 0, w: 6, h: tileSize - 8 },
   };
 }
+function getNpcImageUrl(entity: Entity): string | undefined {
+  return entity.image ? `${import.meta.env.BASE_URL}npcs/${entity.image}` : undefined;
+}
 
 function useTileSize(): number {
   const calc = () => Math.min(MAX_TILE_SIZE, Math.floor((window.innerWidth - APP_PADDING) / VIEWPORT_W));
@@ -440,10 +443,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
           const isNpc = entity.type === 'npc';
 
           const bgColor = isNpc ? '#2d6a4f' : isMe ? '#e63946' : '#457b9d';
-          const npcImageUrl =
-            isNpc && entity.image
-              ? `${import.meta.env.BASE_URL}npcs/${entity.image}`
-              : null;
+          const npcImageUrl = isNpc ? getNpcImageUrl(entity) : null;
 
           return (
             <div
@@ -523,6 +523,7 @@ export function GameView({ mode, onExit }: GameViewProps) {
           npcId={dialogueNpc.dialogueFile ?? dialogueNpc.id}
           npcName={dialogueNpc.name ?? 'Unknown'}
           onClose={() => setDialogueNpc(null)}
+	  img={getNpcImageUrl(dialogueNpc)}
         />
       )}
     </div>
