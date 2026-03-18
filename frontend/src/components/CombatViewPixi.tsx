@@ -262,7 +262,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     : 'hero1';
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(defaultHero);
   const [pendingSpell, setPendingSpell] = useState<SpellDef | null>(null);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(!isNetworked);
 
   const commandQueueRef = useRef<PlayerCommand[]>([]);
   const lastFrameRef = useRef<number>(0);
@@ -601,11 +601,6 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     setPendingSpell(spell);
   }, [selectedHero]);
 
-  const handleCancel = useCallback(() => {
-    if (pendingSpell) { setPendingSpell(null); return; }
-    if (selectedHero) enqueue({ type: 'cancel_action', unitId: selectedHero.id });
-  }, [selectedHero, pendingSpell, enqueue]);
-
 
   const resetToState = useCallback((state: CombatState, heroId: string | null) => {
     combatStateRef.current = state;
@@ -667,12 +662,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
         );
       })()}
 
-      {pendingSpell && (
-        <div style={styles.pendingBanner}>
-          Targeting: <strong>{pendingSpell.name}</strong>
-          {pendingSpell.aoeRadius > 0 && ` (AoE radius ${pendingSpell.aoeRadius})`}
-          {' — click a tile to cast'}
-          <button style={styles.cancelBtn} onClick={handleCancel}>Cancel</button>
+
+      {!isNetworked && paused && combatState.outcome === 'ongoing' && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100 }}>
+          <button onClick={() => setPaused(false)} style={{ padding: '20px 60px', fontSize: '2rem', fontWeight: 'bold', backgroundColor: '#c0392b', color: '#fff', border: '3px solid #e74c3c', borderRadius: '8px', cursor: 'pointer', letterSpacing: '2px' }}>
+            {combatState.elapsedMs === 0 ? 'BEGIN' : 'RESUME'}
+          </button>
         </div>
       )}
 
@@ -858,15 +853,14 @@ function EnemyCard({ enemy, onClick }: { enemy: UnitDef; onClick: () => void }) 
 // --- Styles ---
 
 const styles: Record<string, React.CSSProperties> = {
-  container: { backgroundColor: '#1a1a2e', color: '#eee', minHeight: '100vh', fontFamily: "'Courier New', monospace", display: 'flex', flexDirection: 'column' },
+  container: { backgroundColor: '#1a1a2e', color: '#eee', minHeight: '100vh', fontFamily: "'Courier New', monospace", display: 'flex', flexDirection: 'column', position: 'relative' },
   header: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', backgroundColor: '#16213e', borderBottom: '2px solid #0f3460' },
   title: { fontSize: '18px', fontWeight: 'bold', color: '#e94560', flex: 1 },
   timer: { fontSize: '14px', color: '#aaa' },
   exitBtn: { padding: '4px 12px', backgroundColor: '#333', color: '#eee', border: '1px solid #555', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit' },
   outcomeBanner: { textAlign: 'center', padding: '16px', fontSize: '24px', fontWeight: 'bold', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 },
   restartBtn: { padding: '8px 16px', backgroundColor: '#fff', color: '#333', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', fontFamily: 'inherit' },
-  pendingBanner: { padding: '8px 16px', backgroundColor: '#4a1d8a', color: '#fff', textAlign: 'center', fontSize: '13px' },
-  cancelBtn: { marginLeft: 8, padding: '2px 8px', backgroundColor: '#777', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit' },
+
   mainArea: { display: 'flex', flex: 1, padding: 12, gap: 12, overflow: 'auto' },
   rightPanel: { flex: 1, minWidth: 220, maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 8, overflow: 'auto' },
   section: { backgroundColor: '#16213e', borderRadius: 4, padding: 8, border: '1px solid #0f3460' },
