@@ -54,7 +54,7 @@ function App() {
         sessionId={networkedCombat.sessionId}
         side={networkedCombat.side}
         initialState={networkedCombat.state}
-        onExit={() => { setNetworkedCombat(null); setScreen('welcome'); }}
+        onExit={() => { combatApi.leave(networkedCombat.sessionId).catch(console.error); setNetworkedCombat(null); setScreen('welcome'); }}
       />
     );
   }

@@ -606,15 +606,6 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     if (selectedHero) enqueue({ type: 'cancel_action', unitId: selectedHero.id });
   }, [selectedHero, pendingSpell, enqueue]);
 
-  // Leave session on unmount (networked mode)
-  useEffect(() => {
-    if (!isNetworked) return;
-    return () => {
-      if (sessionIdRef.current) {
-        combatApi.leave(sessionIdRef.current).catch(console.error);
-      }
-    };
-  }, [isNetworked]);
 
   const resetToState = useCallback((state: CombatState, heroId: string | null) => {
     combatStateRef.current = state;
