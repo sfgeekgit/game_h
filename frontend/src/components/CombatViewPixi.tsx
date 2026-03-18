@@ -292,6 +292,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   // Effect animation state
   const activeEffectsRef = useRef<ActiveEffect[]>([]);
   const prevUnitActionsRef = useRef<Map<string, UnitAction>>(new Map());
+  const lastEventTickRef = useRef(0); // last tickCount we checked events for
 
   // Move queue: up to 2 pending moves per unit (beyond current move)
   const moveQueueRef = useRef<Map<string, Array<{ toX: number; toY: number }>>>(new Map());
@@ -485,6 +486,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   // Detect spell fires from state transition and spawn visual effects; also drain move queue
   const detectSpellFires = useCallback((newState: CombatState) => {
     const thisTick = newState.tickCount - 1;
+    const fromTick = lastEventTickRef.current;
     const ts = tileSizeRef.current;
     for (const unit of newState.units) {
       const prevAction = prevUnitActionsRef.current.get(unit.id);
@@ -523,9 +525,11 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       prevUnitActionsRef.current.set(unit.id, unit.currentAction);
     }
 
-    // Detect weapon hits from events (event-based, since auto-attack stays in charging_weapon)
+    lastEventTickRef.current = newState.tickCount;
+
+    // Detect weapon hits from all ticks since last poll (networked mode may skip many ticks)
     for (const evt of newState.events) {
-      if (evt.tick !== thisTick || evt.source !== 'weapon') continue;
+      if (evt.tick < fromTick || evt.tick > thisTick || evt.source !== 'weapon') continue;
       if (!evt.unitId || !evt.targetId || !evt.damage) continue;
       const attacker = newState.units.find(u => u.id === evt.unitId);
       const target = newState.units.find(u => u.id === evt.targetId);
@@ -680,6 +684,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     lastFrameRef.current = 0;
     activeEffectsRef.current = [];
     moveQueueRef.current.clear();
+    lastEventTickRef.current = 0;
     renderDirtyRef.current = true;
     prevUnitActionsRef.current.clear();
     for (const unit of state.units) {
