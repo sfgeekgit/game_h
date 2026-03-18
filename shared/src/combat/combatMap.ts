@@ -1,7 +1,7 @@
 import type { CombatTile } from './combatTypes.js';
 
 /** Create a simple open arena. Heroes spawn left, enemies spawn right. */
-export function createArena(width: number = 12, height: number = 9): {
+export function createArena(width: number = 9, height: number = 9): {
   tiles: CombatTile[][];
   width: number;
   height: number;
@@ -16,9 +16,9 @@ export function createArena(width: number = 12, height: number = 9): {
   }
 
   // Add a couple of walls for tactical interest
-  tiles[3][5] = { type: 'wall' };
-  tiles[4][5] = { type: 'wall' };
-  tiles[5][5] = { type: 'wall' };
+  tiles[3][4] = { type: 'wall' };
+  tiles[4][4] = { type: 'wall' };
+  tiles[5][4] = { type: 'wall' };
 
   return { tiles, width, height };
 }

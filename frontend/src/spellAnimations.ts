@@ -1,8 +1,5 @@
 import type { Graphics } from 'pixi.js';
 
-// Tile size in pixels — shared between grid rendering and spell effects
-export const TILE_SIZE = 52;
-
 // Params passed to every animation function
 export interface SpellEffectState {
   casterPx: number;
@@ -11,6 +8,7 @@ export interface SpellEffectState {
   targetPy: number;
   aoeRadius: number;
   particles: Array<{ x: number; y: number }>;
+  tileSize: number;
 }
 
 export type SpellAnimFn = (g: Graphics, fx: SpellEffectState, t: number) => void;
@@ -41,7 +39,7 @@ export const SPELL_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
   },
 
   // Traveling fireball with trail, then AoE explosion with embers (e.g. Fireball)
-  fire_projectile: (g, { casterPx: cx, casterPy: cy, targetPx: tx, targetPy: ty, aoeRadius, particles }, t) => {
+  fire_projectile: (g, { casterPx: cx, casterPy: cy, targetPx: tx, targetPy: ty, aoeRadius, particles, tileSize }, t) => {
     const splitT = 0.42;
     if (t < splitT) {
       const travelT = t / splitT;
@@ -57,7 +55,7 @@ export const SPELL_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       g.circle(px, py, 6 * pulse).fill({ color: 0xffffff, alpha: 0.7 });
     } else {
       const expT = (t - splitT) / (1 - splitT);
-      const maxR = (aoeRadius + 0.65) * TILE_SIZE;
+      const maxR = (aoeRadius + 0.65) * tileSize;
       g.circle(tx, ty, expT * maxR * 1.18).fill({ color: 0xff4400, alpha: (1 - expT) * 0.28 });
       g.circle(tx, ty, expT * maxR).stroke({ color: 0xff6600, width: 3, alpha: (1 - expT) * 0.92 });
       const innerAlpha = Math.max(0, (0.38 - expT) / 0.38) * 0.88;
@@ -72,8 +70,8 @@ export const SPELL_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
   },
 
   // Expanding concentric flame waves from caster + flying embers (e.g. Burning Hands)
-  fire_burst: (g, { casterPx: cx, casterPy: cy, aoeRadius, particles }, t) => {
-    const maxR = (aoeRadius + 1.0) * TILE_SIZE;
+  fire_burst: (g, { casterPx: cx, casterPy: cy, aoeRadius, particles, tileSize }, t) => {
+    const maxR = (aoeRadius + 1.0) * tileSize;
     for (let i = 0; i < 5; i++) {
       const wT = Math.max(0, Math.min((t - i * 0.07) / 0.65, 1));
       if (wT <= 0) continue;
@@ -89,8 +87,8 @@ export const SPELL_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
   },
 
   // Expanding green rings + plus symbol + rising sparkles (e.g. Heal)
-  heal_pulse: (g, { targetPx: tx, targetPy: ty, particles }, t) => {
-    const baseR = TILE_SIZE * 0.55;
+  heal_pulse: (g, { targetPx: tx, targetPy: ty, particles, tileSize }, t) => {
+    const baseR = tileSize * 0.55;
     const alpha1 = t < 0.5 ? t * 2 : (1 - t) * 2;
     g.circle(tx, ty, t * baseR * 2.1).stroke({ color: 0x44ff88, width: 2.5, alpha: alpha1 * 0.9 });
     if (t > 0.22) {
@@ -104,14 +102,14 @@ export const SPELL_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       g.moveTo(tx, ty - cs).lineTo(tx, ty + cs).stroke({ color: 0x88ffbb, width: 2.5, alpha: crossAlpha });
     }
     for (const p of particles) {
-      g.circle(tx + (p.x - 0.5) * TILE_SIZE, ty - t * 48 + p.y * 22, 2.5)
+      g.circle(tx + (p.x - 0.5) * tileSize, ty - t * 48 + p.y * 22, 2.5)
         .fill({ color: 0x88ffcc, alpha: (1 - t) * 0.9 });
     }
   },
 
   // Pulsing frost area overlay + falling ice shard particles (e.g. Ice Storm)
-  frost_storm: (g, { targetPx: tx, targetPy: ty, aoeRadius, particles }, t) => {
-    const maxR = (aoeRadius + 0.65) * TILE_SIZE;
+  frost_storm: (g, { targetPx: tx, targetPy: ty, aoeRadius, particles, tileSize }, t) => {
+    const maxR = (aoeRadius + 0.65) * tileSize;
     const pulse = 0.22 + 0.13 * Math.sin(t * Math.PI * 7);
     g.circle(tx, ty, maxR).fill({ color: 0x88ddff, alpha: pulse * (1 - t * 0.65) });
     g.circle(tx, ty, maxR).stroke({ color: 0xaaeeff, width: 2, alpha: (1 - t) * 0.82 });
@@ -119,7 +117,7 @@ export const SPELL_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       const angle = p.x * Math.PI * 2;
       const r = p.y * maxR * 0.92;
       const sx = tx + Math.cos(angle) * r;
-      const sy = ty + Math.sin(angle) * r + (t * 35) % TILE_SIZE - TILE_SIZE / 2;
+      const sy = ty + Math.sin(angle) * r + (t * 35) % tileSize - tileSize / 2;
       const blink = Math.sin(t * 9 + p.x * 5.5) * 0.5 + 0.5;
       const shardAlpha = blink * (1 - t * 0.72);
       g.circle(sx, sy, 2.5).fill({ color: 0xffffff, alpha: shardAlpha });

@@ -6,8 +6,7 @@ import {
 import type {
   CombatState, PlayerCommand, UnitDef, UnitSide, SpellDef, UnitAction,
 } from '@game_h/shared';
-import { TILE_SIZE, SPELL_ANIM_REGISTRY } from '../spellAnimations.js';
-import type { SpellEffectState } from '../spellAnimations.js';
+import { SPELL_ANIM_REGISTRY, type SpellEffectState } from '../spellAnimations.js';
 import { WEAPON_ANIM_REGISTRY } from '../weaponAnimations.js';
 import { combatApi } from '../combatApi.js';
 
@@ -48,11 +47,11 @@ interface UnitPixiObjects {
   hpText: Text;
 }
 
-function drawTiles(g: Graphics, state: CombatState): void {
+function drawTiles(g: Graphics, state: CombatState, ts: number): void {
   for (let y = 0; y < state.gridHeight; y++) {
     for (let x = 0; x < state.gridWidth; x++) {
       const tile = state.tiles[y][x];
-      g.rect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+      g.rect(x * ts + 1, y * ts + 1, ts - 2, ts - 2);
       g.fill({ color: tile.type === 'wall' ? 0x3a3a3a : 0x5c4a32 });
     }
   }
@@ -63,6 +62,7 @@ function updateHighlights(
   state: CombatState,
   spell: SpellDef | null,
   heroId: string | null,
+  ts: number,
 ): void {
   g.clear();
   const hero = heroId ? state.units.find(u => u.id === heroId && u.alive) : null;
@@ -72,7 +72,7 @@ function updateHighlights(
     for (let y = 0; y < state.gridHeight; y++) {
       for (let x = 0; x < state.gridWidth; x++) {
         if (manhattanDistance(hero.x, hero.y, x, y) <= spell.range) {
-          g.rect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+          g.rect(x * ts + 1, y * ts + 1, ts - 2, ts - 2);
           g.fill({ color: 0x9333ea, alpha: 0.3 });
         }
       }
@@ -83,7 +83,7 @@ function updateHighlights(
     for (let y = 0; y < state.gridHeight; y++) {
       for (let x = 0; x < state.gridWidth; x++) {
         if (manhattanDistance(hero.x, hero.y, x, y) <= r) {
-          g.rect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+          g.rect(x * ts + 1, y * ts + 1, ts - 2, ts - 2);
           g.fill({ color: 0xf39c12, alpha: 0.15 });
         }
       }
@@ -92,24 +92,24 @@ function updateHighlights(
 }
 
 // Draws targeting lines and movement arrows between units
-function updateOverlays(g: Graphics, state: CombatState): void {
+function updateOverlays(g: Graphics, state: CombatState, ts: number): void {
   g.clear();
   for (const unit of state.units) {
     if (!unit.alive) continue;
-    const cx = unit.x * TILE_SIZE + TILE_SIZE / 2;
-    const cy = unit.y * TILE_SIZE + TILE_SIZE / 2;
+    const cx = unit.x * ts + ts / 2;
+    const cy = unit.y * ts + ts / 2;
     const action = unit.currentAction;
     if (action.type === 'charging_weapon') {
       const target = state.units.find(u => u.id === action.targetId);
       if (target?.alive) {
-        const tx = target.x * TILE_SIZE + TILE_SIZE / 2;
-        const ty = target.y * TILE_SIZE + TILE_SIZE / 2;
+        const tx = target.x * ts + ts / 2;
+        const ty = target.y * ts + ts / 2;
         g.moveTo(cx, cy).lineTo(tx, ty).stroke({ color: 0xf39c12, width: 1.5, alpha: 0.75 });
         g.moveTo(cx, cy).lineTo(cx + (tx - cx) * unit.chargeProgress, cy + (ty - cy) * unit.chargeProgress).stroke({ color: 0xf39c12, width: 4, alpha: 0.85 });
       }
     } else if (action.type === 'moving') {
-      const tx = action.toX * TILE_SIZE + TILE_SIZE / 2;
-      const ty = action.toY * TILE_SIZE + TILE_SIZE / 2;
+      const tx = action.toX * ts + ts / 2;
+      const ty = action.toY * ts + ts / 2;
       g.moveTo(cx, cy);
       g.lineTo(cx + (tx - cx) / 2, cy + (ty - cy) / 2);
       g.stroke({ color: 0x2ecc71, width: 2, alpha: 0.7 });
@@ -117,8 +117,8 @@ function updateOverlays(g: Graphics, state: CombatState): void {
       const targetUnit = action.targetUnitId ? state.units.find(u => u.id === action.targetUnitId) : null;
       const tileX = targetUnit ? targetUnit.x : action.targetX;
       const tileY = targetUnit ? targetUnit.y : action.targetY;
-      const tx = tileX * TILE_SIZE + TILE_SIZE / 2;
-      const ty = tileY * TILE_SIZE + TILE_SIZE / 2;
+      const tx = tileX * ts + ts / 2;
+      const ty = tileY * ts + ts / 2;
       g.moveTo(cx, cy).lineTo(tx, ty).stroke({ color: 0x9333ea, width: 1.5, alpha: 0.75 });
       g.moveTo(cx, cy).lineTo(cx + (tx - cx) * unit.chargeProgress, cy + (ty - cy) * unit.chargeProgress).stroke({ color: 0x9333ea, width: 4, alpha: 0.85 });
       const spell = SPELLS[action.spellId];
@@ -131,10 +131,10 @@ function updateOverlays(g: Graphics, state: CombatState): void {
         for (let gy = 0; gy < state.gridHeight; gy++) {
           for (let gx = 0; gx < state.gridWidth; gx++) {
             if (manhattanDistance(tileX, tileY, gx, gy) > spell.aoeRadius) continue;
-            if (!inRange(gx, gy - 1)) { g.moveTo(gx * TILE_SIZE, gy * TILE_SIZE).lineTo((gx + 1) * TILE_SIZE, gy * TILE_SIZE).stroke(aoeStroke); }
-            if (!inRange(gx, gy + 1)) { g.moveTo(gx * TILE_SIZE, (gy + 1) * TILE_SIZE).lineTo((gx + 1) * TILE_SIZE, (gy + 1) * TILE_SIZE).stroke(aoeStroke); }
-            if (!inRange(gx - 1, gy)) { g.moveTo(gx * TILE_SIZE, gy * TILE_SIZE).lineTo(gx * TILE_SIZE, (gy + 1) * TILE_SIZE).stroke(aoeStroke); }
-            if (!inRange(gx + 1, gy)) { g.moveTo((gx + 1) * TILE_SIZE, gy * TILE_SIZE).lineTo((gx + 1) * TILE_SIZE, (gy + 1) * TILE_SIZE).stroke(aoeStroke); }
+            if (!inRange(gx, gy - 1)) { g.moveTo(gx * ts, gy * ts).lineTo((gx + 1) * ts, gy * ts).stroke(aoeStroke); }
+            if (!inRange(gx, gy + 1)) { g.moveTo(gx * ts, (gy + 1) * ts).lineTo((gx + 1) * ts, (gy + 1) * ts).stroke(aoeStroke); }
+            if (!inRange(gx - 1, gy)) { g.moveTo(gx * ts, gy * ts).lineTo(gx * ts, (gy + 1) * ts).stroke(aoeStroke); }
+            if (!inRange(gx + 1, gy)) { g.moveTo((gx + 1) * ts, gy * ts).lineTo((gx + 1) * ts, (gy + 1) * ts).stroke(aoeStroke); }
           }
         }
       }
@@ -142,11 +142,11 @@ function updateOverlays(g: Graphics, state: CombatState): void {
   }
 }
 
-function createUnitPixiObjects(unit: UnitDef, parent: Container): UnitPixiObjects {
+function createUnitPixiObjects(unit: UnitDef, parent: Container, ts: number): UnitPixiObjects {
   const container = new Container();
-  container.x = unit.x * TILE_SIZE;
-  container.y = unit.y * TILE_SIZE;
-  container.hitArea = new Rectangle(0, 0, TILE_SIZE, TILE_SIZE);
+  container.x = unit.x * ts;
+  container.y = unit.y * ts;
+  container.hitArea = new Rectangle(0, 0, ts, ts);
   parent.addChild(container);
 
   const body = new Graphics();
@@ -160,8 +160,8 @@ function createUnitPixiObjects(unit: UnitDef, parent: Container): UnitPixiObject
     style: { fontSize: 9, fill: '#ffffff', fontFamily: 'Courier New', fontWeight: 'bold' },
   });
   label.anchor.set(0.5, 0.5);
-  label.x = TILE_SIZE / 2;
-  label.y = TILE_SIZE / 2 - 4;
+  label.x = ts / 2;
+  label.y = ts / 2 - 4;
   container.addChild(label);
 
   const hpText = new Text({
@@ -169,22 +169,22 @@ function createUnitPixiObjects(unit: UnitDef, parent: Container): UnitPixiObject
     style: { fontSize: 8, fill: '#ffffff', fontFamily: 'Courier New' },
   });
   hpText.anchor.set(0.5, 0.5);
-  hpText.x = TILE_SIZE / 2;
-  hpText.y = TILE_SIZE / 2 + 6;
+  hpText.x = ts / 2;
+  hpText.y = ts / 2 + 6;
   container.addChild(hpText);
 
   return { container, body, ring, label, hpText };
 }
 
-function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected: boolean, mySide: UnitSide): void {
-  objs.container.x = unit.x * TILE_SIZE;
-  objs.container.y = unit.y * TILE_SIZE;
+function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected: boolean, mySide: UnitSide, ts: number): void {
+  objs.container.x = unit.x * ts;
+  objs.container.y = unit.y * ts;
   objs.container.alpha = unit.alive ? 1 : 0.4;
   objs.container.cursor = unit.alive ? 'pointer' : 'default';
 
-  const cx = TILE_SIZE / 2;
-  const cy = TILE_SIZE / 2;
-  const bodyR = 18;
+  const cx = ts / 2;
+  const cy = ts / 2;
+  const bodyR = Math.round(ts * 0.35);
 
   objs.body.clear();
   const color = unitBodyColor(unit, isSelected, mySide);
@@ -197,7 +197,7 @@ function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected:
   }
 
   objs.ring.clear();
-  const ringR = 22;
+  const ringR = Math.round(ts * 0.42);
   if (unit.alive && unit.currentAction.type !== 'idle') {
     objs.ring.arc(cx, cy, ringR, 0, Math.PI * 2).stroke({ color: 0x000000, alpha: 0.35, width: 4 });
     if (unit.chargeProgress > 0) {
@@ -247,10 +247,16 @@ interface CombatViewPixiProps {
   initialState?: CombatState;
 }
 
+const MAX_COMBAT_TILE_SIZE = 60;
+const COMBAT_APP_PADDING = 32;
+
 export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initialState }: CombatViewPixiProps) {
   const isNetworked = mode === 'networked' && !!sessionId;
   const mySide: UnitSide = side ?? 'hero';
   const [combatState, setCombatState] = useState<CombatState>(() => initialState ?? createCombatState());
+  const tileSizeRef = useRef(
+    Math.min(MAX_COMBAT_TILE_SIZE, Math.floor((window.innerWidth - COMBAT_APP_PADDING) / (initialState?.gridWidth ?? 9)))
+  );
   const defaultHero = isNetworked
     ? (initialState?.units.find(u => u.side === mySide)?.id ?? null)
     : 'hero1';
@@ -293,11 +299,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
 
   const renderToPixi = useCallback((state: CombatState) => {
     if (!pixiAppRef.current) return;
-    updateHighlights(highlightLayerRef.current!, state, pendingSpellRef.current, selectedHeroIdRef.current);
-    updateOverlays(overlayLayerRef.current!, state);
+    const ts = tileSizeRef.current;
+    updateHighlights(highlightLayerRef.current!, state, pendingSpellRef.current, selectedHeroIdRef.current, ts);
+    updateOverlays(overlayLayerRef.current!, state, ts);
     for (const unit of state.units) {
       const objs = unitObjectsRef.current.get(unit.id);
-      if (objs) updateUnitPixiObjects(objs, unit, unit.id === selectedHeroIdRef.current, mySideRef.current);
+      if (objs) updateUnitPixiObjects(objs, unit, unit.id === selectedHeroIdRef.current, mySideRef.current, ts);
     }
     if (effectsLayerRef.current) {
       activeEffectsRef.current = drawEffects(effectsLayerRef.current, activeEffectsRef.current);
@@ -351,8 +358,9 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   useEffect(() => {
     if (!canvasContainerRef.current) return;
     const state = combatStateRef.current;
-    const width = state.gridWidth * TILE_SIZE;
-    const height = state.gridHeight * TILE_SIZE;
+    const ts = tileSizeRef.current;
+    const width = state.gridWidth * ts;
+    const height = state.gridHeight * ts;
     const app = new Application();
     let destroyed = false;
 
@@ -364,7 +372,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       // Static tile layer — drawn once
       const tileLayer = new Graphics();
       app.stage.addChild(tileLayer);
-      drawTiles(tileLayer, state);
+      drawTiles(tileLayer, state, ts);
 
       // Spell range highlight layer
       const highlightLayer = new Graphics();
@@ -376,7 +384,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       app.stage.addChild(unitLayer);
 
       for (const unit of state.units) {
-        const objs = createUnitPixiObjects(unit, unitLayer);
+        const objs = createUnitPixiObjects(unit, unitLayer, ts);
         unitObjectsRef.current.set(unit.id, objs);
         objs.container.eventMode = 'static';
         const unitId = unit.id;
@@ -414,8 +422,8 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       app.stage.hitArea = new Rectangle(0, 0, width, height);
       app.stage.on('pointerdown', (e) => {
         handleTileClick(
-          Math.floor(e.global.x / TILE_SIZE),
-          Math.floor(e.global.y / TILE_SIZE),
+          Math.floor(e.global.x / ts),
+          Math.floor(e.global.y / ts),
         );
       });
 
@@ -449,22 +457,24 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   // Detect spell fires from state transition and spawn visual effects
   const detectSpellFires = useCallback((newState: CombatState) => {
     const thisTick = newState.tickCount - 1;
+    const ts = tileSizeRef.current;
     for (const unit of newState.units) {
       const prevAction = prevUnitActionsRef.current.get(unit.id);
       if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
         const fizzled = newState.events.some(e => e.tick === thisTick && e.unitId === unit.id && e.fizzled);
         const spell = SPELLS[prevAction.spellId];
         if (!fizzled && spell) {
-          const casterPx = unit.x * TILE_SIZE + TILE_SIZE / 2;
-          const casterPy = unit.y * TILE_SIZE + TILE_SIZE / 2;
+          const casterPx = unit.x * ts + ts / 2;
+          const casterPy = unit.y * ts + ts / 2;
           const targetUnit = prevAction.targetUnitId
             ? newState.units.find(u => u.id === prevAction.targetUnitId) : null;
-          const targetPx = (targetUnit?.x ?? prevAction.targetX) * TILE_SIZE + TILE_SIZE / 2;
-          const targetPy = (targetUnit?.y ?? prevAction.targetY) * TILE_SIZE + TILE_SIZE / 2;
+          const targetPx = (targetUnit?.x ?? prevAction.targetX) * ts + ts / 2;
+          const targetPy = (targetUnit?.y ?? prevAction.targetY) * ts + ts / 2;
           activeEffectsRef.current.push({
             animType: spell.animType,
             casterPx, casterPy, targetPx, targetPy,
             aoeRadius: spell.aoeRadius,
+            tileSize: ts,
             startMs: performance.now(),
             durationMs: spell.animDurationMs,
             particles: makeParticles(spell.particleCount),
@@ -484,11 +494,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       const { animType, animDurationMs, particleCount } = attacker.weapon;
       activeEffectsRef.current.push({
         animType,
-        casterPx: attacker.x * TILE_SIZE + TILE_SIZE / 2,
-        casterPy: attacker.y * TILE_SIZE + TILE_SIZE / 2,
-        targetPx: target.x * TILE_SIZE + TILE_SIZE / 2,
-        targetPy: target.y * TILE_SIZE + TILE_SIZE / 2,
+        casterPx: attacker.x * ts + ts / 2,
+        casterPy: attacker.y * ts + ts / 2,
+        targetPx: target.x * ts + ts / 2,
+        targetPy: target.y * ts + ts / 2,
         aoeRadius: 0,
+        tileSize: ts,
         startMs: performance.now(),
         durationMs: animDurationMs,
         particles: makeParticles(particleCount),
@@ -683,7 +694,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
           />
 
           {selectedHero && selectedHero.spells.length > 0 && (
-            <div style={{ ...styles.section, width: combatState.gridWidth * TILE_SIZE - 2 }}>
+            <div style={{ ...styles.section, width: combatState.gridWidth * tileSizeRef.current - 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={styles.sectionTitle}>{selectedHero.name.split(' ')[0]}'s Spells</span>
                 <span style={{ fontSize: '10px', color: '#888' }}>Mana: {selectedHero.mana}/{selectedHero.maxMana}</span>

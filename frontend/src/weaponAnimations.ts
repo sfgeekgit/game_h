@@ -1,4 +1,3 @@
-import { TILE_SIZE } from './spellAnimations.js';
 import type { SpellAnimFn } from './spellAnimations.js';
 
 // Ease-out: fast start, gentle landing
@@ -19,8 +18,8 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
 
   // ── SWORD SLASH ──────────────────────────────────────────────────────
   // Wide sweeping arc with motion blur, steel glint, and hot sparks
-  sword_slash: (g, { targetPx: tx, targetPy: ty, particles }, t) => {
-    const r = TILE_SIZE * 0.72;
+  sword_slash: (g, { targetPx: tx, targetPy: ty, particles, tileSize }, t) => {
+    const r = tileSize * 0.72;
     const startAngle = -Math.PI * 0.55;
     const endAngle = Math.PI * 0.55;
     const sweepT = easeOut(Math.min(t / 0.5, 1));
@@ -72,7 +71,7 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       if (t < sparkStart) continue;
       const sparkT = easeOut((t - sparkStart) / (1 - sparkStart));
       const angle = p.x * Math.PI * 2;
-      const dist = sparkT * TILE_SIZE * 0.8 * (0.4 + p.y * 0.6);
+      const dist = sparkT * tileSize * 0.8 * (0.4 + p.y * 0.6);
       const sparkAlpha = (1 - sparkT) * 0.95;
       const sparkR = (1 - sparkT) * 3;
       // Bright core
@@ -86,8 +85,8 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
 
   // ── DAGGER STAB ──────────────────────────────────────────────────────
   // Lightning-fast thrust with gleaming blade, blood-red starburst, and speed lines
-  dagger_stab: (g, { casterPx: cx, casterPy: cy, targetPx: tx, targetPy: ty, particles }, t) => {
-    const { nx, ny } = normalize(cx, cy, tx, ty);
+  dagger_stab: (g, { casterPx: cx, casterPy: cy, targetPx: tx, targetPy: ty, particles, tileSize }, t) => {
+    const { dx, dy, nx, ny } = normalize(cx, cy, tx, ty);
     // Perpendicular for speed lines
     const px = -ny;
     const py = nx;
@@ -109,8 +108,8 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
     // Blade thrust — fast acceleration into target
     if (t < 0.3) {
       const thrustT = easeIn(t / 0.3);
-      const tipX = tx - nx * TILE_SIZE * 0.5 * (1 - thrustT);
-      const tipY = ty - ny * TILE_SIZE * 0.5 * (1 - thrustT);
+      const tipX = tx - nx * tileSize * 0.5 * (1 - thrustT);
+      const tipY = ty - ny * tileSize * 0.5 * (1 - thrustT);
       // Blade body
       g.moveTo(tipX - nx * 16, tipY - ny * 16)
         .lineTo(tipX, tipY)
@@ -131,7 +130,7 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       // Crimson starburst rays
       for (const p of particles) {
         const angle = p.x * Math.PI * 2;
-        const dist = burstT * TILE_SIZE * 0.55 * (0.5 + p.y * 0.5);
+        const dist = burstT * tileSize * 0.55 * (0.5 + p.y * 0.5);
         const rayAlpha = (1 - burstT) * 0.9;
         // Red slash mark
         g.moveTo(tx + Math.cos(angle) * dist * 0.3, ty + Math.sin(angle) * dist * 0.3)
@@ -149,11 +148,11 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
 
   // ── STAFF STRIKE ─────────────────────────────────────────────────────
   // Mystical wooden staff: downward slam with golden energy shockwave and runic sparks
-  staff_strike: (g, { targetPx: tx, targetPy: ty, particles }, t) => {
+  staff_strike: (g, { targetPx: tx, targetPy: ty, particles, tileSize }, t) => {
     // Staff slam — accelerating downward
     if (t < 0.35) {
       const slamT = easeIn(t / 0.35);
-      const topY = ty - TILE_SIZE * 0.8 * (1 - slamT);
+      const topY = ty - tileSize * 0.8 * (1 - slamT);
       // Staff body (thick wooden rod)
       g.moveTo(tx - 2, topY).lineTo(tx + 2, topY).lineTo(tx + 1, ty).lineTo(tx - 1, ty)
         .fill({ color: 0x6b4226, alpha: 0.95 });
@@ -166,16 +165,16 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
     if (t >= 0.25) {
       const ringT = easeOut((t - 0.25) / 0.75);
       // Outer ring
-      g.circle(tx, ty, ringT * TILE_SIZE * 0.85)
+      g.circle(tx, ty, ringT * tileSize * 0.85)
         .stroke({ color: 0xddaa22, width: 3, alpha: (1 - ringT) * 0.9 });
       // Inner ring (delayed)
       if (t >= 0.35) {
         const ring2T = easeOut((t - 0.35) / 0.65);
-        g.circle(tx, ty, ring2T * TILE_SIZE * 0.55)
+        g.circle(tx, ty, ring2T * tileSize * 0.55)
           .stroke({ color: 0xffdd44, width: 2, alpha: (1 - ring2T) * 0.7 });
       }
       // Ground glow
-      g.circle(tx, ty, ringT * TILE_SIZE * 0.5)
+      g.circle(tx, ty, ringT * tileSize * 0.5)
         .fill({ color: 0xffee88, alpha: (1 - ringT) * 0.2 });
     }
 
@@ -192,7 +191,7 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       const sparkT = (t - sparkStart) / (1 - sparkStart);
       const baseAngle = p.x * Math.PI * 2;
       const spiral = baseAngle + sparkT * Math.PI * 1.5; // spiral outward
-      const dist = easeOut(sparkT) * TILE_SIZE * 0.6 * (0.3 + p.y * 0.7);
+      const dist = easeOut(sparkT) * tileSize * 0.6 * (0.3 + p.y * 0.7);
       const rise = sparkT * 25 * p.y; // float upward
       const sparkAlpha = (1 - sparkT) * 0.9;
       g.circle(tx + Math.cos(spiral) * dist, ty + Math.sin(spiral) * dist - rise, 2.5 * (1 - sparkT))
@@ -204,7 +203,7 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
 
   // ── ARROW SHOT ───────────────────────────────────────────────────────
   // Arrow with fletching trail, motion streak, and satisfying thunk impact
-  arrow_shot: (g, { casterPx: cx, casterPy: cy, targetPx: tx, targetPy: ty, particles }, t) => {
+  arrow_shot: (g, { casterPx: cx, casterPy: cy, targetPx: tx, targetPy: ty, particles, tileSize }, t) => {
     const { dx, dy, len, nx, ny } = normalize(cx, cy, tx, ty);
     const perpX = -ny;
     const perpY = nx;
@@ -280,7 +279,7 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       // Wood splinters + dust particles
       for (const p of particles) {
         const angle = p.x * Math.PI * 2;
-        const dist = impT * TILE_SIZE * 0.4 * (0.3 + p.y * 0.7);
+        const dist = impT * tileSize * 0.4 * (0.3 + p.y * 0.7);
         const rise = impT * 12 * p.y - impT * impT * 18 * p.y; // arc up then down
         g.circle(tx + Math.cos(angle) * dist, ty + Math.sin(angle) * dist - rise,
           2 * (1 - impT))
@@ -291,11 +290,11 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
 
   // ── CLUB SMASH ───────────────────────────────────────────────────────
   // Brutal overhead smash: heavy club descends, earth-shattering impact with dust and debris
-  club_smash: (g, { targetPx: tx, targetPy: ty, particles }, t) => {
+  club_smash: (g, { targetPx: tx, targetPy: ty, particles, tileSize }, t) => {
     // Heavy club descending — with wind-up wobble
     if (t < 0.3) {
       const smashT = easeIn(t / 0.3);
-      const topY = ty - TILE_SIZE * (1 - smashT);
+      const topY = ty - tileSize * (1 - smashT);
       // Club shadow growing on ground as it descends
       const shadowScale = 0.3 + smashT * 0.7;
       g.ellipse(tx, ty + 2, 8 * shadowScale, 4 * shadowScale)
@@ -319,7 +318,7 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       // Ground crack lines radiating outward
       for (let i = 0; i < 6; i++) {
         const crackAngle = (i / 6) * Math.PI * 2 + 0.3;
-        const crackLen = impT * TILE_SIZE * 0.7 * (0.5 + (i % 3) * 0.2);
+        const crackLen = impT * tileSize * 0.7 * (0.5 + (i % 3) * 0.2);
         const crackAlpha = (1 - impT) * 0.7;
         g.moveTo(tx, ty)
           .lineTo(tx + Math.cos(crackAngle) * crackLen, ty + Math.sin(crackAngle) * crackLen)
@@ -327,16 +326,16 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       }
 
       // Heavy shockwave — double ring
-      g.circle(tx, ty, impT * TILE_SIZE * 0.95)
+      g.circle(tx, ty, impT * tileSize * 0.95)
         .stroke({ color: 0x8b6914, width: 4, alpha: (1 - impT) * 0.8 });
       if (t >= 0.3) {
         const ring2T = easeOut((t - 0.3) / 0.7);
-        g.circle(tx, ty, ring2T * TILE_SIZE * 0.6)
+        g.circle(tx, ty, ring2T * tileSize * 0.6)
           .stroke({ color: 0xaa8833, width: 2.5, alpha: (1 - ring2T) * 0.6 });
       }
 
       // Dust cloud — expanding semi-transparent fill
-      g.circle(tx, ty, impT * TILE_SIZE * 0.55)
+      g.circle(tx, ty, impT * tileSize * 0.55)
         .fill({ color: 0x997744, alpha: (1 - impT) * 0.2 });
 
       // Central impact flash
@@ -349,7 +348,7 @@ export const WEAPON_ANIM_REGISTRY: Record<string, SpellAnimFn> = {
       for (const p of particles) {
         const angle = p.x * Math.PI * 2;
         const power = 0.3 + p.y * 0.7;
-        const dist = impT * TILE_SIZE * 0.85 * power;
+        const dist = impT * tileSize * 0.85 * power;
         // Parabolic arc: up fast, then gravity pulls down
         const arcHeight = impT * 30 * power - impT * impT * 45 * power;
         const debX = tx + Math.cos(angle) * dist;
