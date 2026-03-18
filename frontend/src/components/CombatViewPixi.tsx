@@ -91,34 +91,38 @@ function updateHighlights(
   }
 }
 
+function visualCenter(unit: UnitDef, ts: number): { cx: number; cy: number } {
+  if (unit.currentAction.type === 'moving') {
+    const p = unit.chargeProgress;
+    return {
+      cx: (unit.x + (unit.currentAction.toX - unit.x) * p) * ts + ts / 2,
+      cy: (unit.y + (unit.currentAction.toY - unit.y) * p) * ts + ts / 2,
+    };
+  }
+  return { cx: unit.x * ts + ts / 2, cy: unit.y * ts + ts / 2 };
+}
+
 // Draws targeting lines and movement arrows between units
 function updateOverlays(g: Graphics, state: CombatState, ts: number): void {
   g.clear();
   for (const unit of state.units) {
     if (!unit.alive) continue;
-    const cx = unit.x * ts + ts / 2;
-    const cy = unit.y * ts + ts / 2;
+    const { cx, cy } = visualCenter(unit, ts);
     const action = unit.currentAction;
     if (action.type === 'charging_weapon') {
       const target = state.units.find(u => u.id === action.targetId);
       if (target?.alive) {
-        const tx = target.x * ts + ts / 2;
-        const ty = target.y * ts + ts / 2;
+        const { cx: tx, cy: ty } = visualCenter(target, ts);
         g.moveTo(cx, cy).lineTo(tx, ty).stroke({ color: 0xf39c12, width: 1.5, alpha: 0.75 });
         g.moveTo(cx, cy).lineTo(cx + (tx - cx) * unit.chargeProgress, cy + (ty - cy) * unit.chargeProgress).stroke({ color: 0xf39c12, width: 4, alpha: 0.85 });
       }
-    } else if (action.type === 'moving') {
-      const tx = action.toX * ts + ts / 2;
-      const ty = action.toY * ts + ts / 2;
-      g.moveTo(cx, cy);
-      g.lineTo(cx + (tx - cx) / 2, cy + (ty - cy) / 2);
-      g.stroke({ color: 0x2ecc71, width: 2, alpha: 0.7 });
     } else if (action.type === 'charging_spell') {
       const targetUnit = action.targetUnitId ? state.units.find(u => u.id === action.targetUnitId) : null;
       const tileX = targetUnit ? targetUnit.x : action.targetX;
       const tileY = targetUnit ? targetUnit.y : action.targetY;
-      const tx = tileX * ts + ts / 2;
-      const ty = tileY * ts + ts / 2;
+      const { cx: tx, cy: ty } = targetUnit
+        ? visualCenter(targetUnit, ts)
+        : { cx: tileX * ts + ts / 2, cy: tileY * ts + ts / 2 };
       g.moveTo(cx, cy).lineTo(tx, ty).stroke({ color: 0x9333ea, width: 1.5, alpha: 0.75 });
       g.moveTo(cx, cy).lineTo(cx + (tx - cx) * unit.chargeProgress, cy + (ty - cy) * unit.chargeProgress).stroke({ color: 0x9333ea, width: 4, alpha: 0.85 });
       const spell = SPELLS[action.spellId];
@@ -177,8 +181,14 @@ function createUnitPixiObjects(unit: UnitDef, parent: Container, ts: number): Un
 }
 
 function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected: boolean, mySide: UnitSide, ts: number): void {
-  objs.container.x = unit.x * ts;
-  objs.container.y = unit.y * ts;
+  if (unit.currentAction.type === 'moving') {
+    const p = unit.chargeProgress;
+    objs.container.x = unit.x * ts + (unit.currentAction.toX - unit.x) * ts * p;
+    objs.container.y = unit.y * ts + (unit.currentAction.toY - unit.y) * ts * p;
+  } else {
+    objs.container.x = unit.x * ts;
+    objs.container.y = unit.y * ts;
+  }
   objs.container.alpha = unit.alive ? 1 : 0.4;
   objs.container.cursor = unit.alive ? 'pointer' : 'default';
 
@@ -198,13 +208,13 @@ function updateUnitPixiObjects(objs: UnitPixiObjects, unit: UnitDef, isSelected:
 
   objs.ring.clear();
   const ringR = Math.round(ts * 0.42);
-  if (unit.alive && unit.currentAction.type !== 'idle') {
+  if (unit.alive) {
     objs.ring.arc(cx, cy, ringR, 0, Math.PI * 2).stroke({ color: 0x000000, alpha: 0.35, width: 4 });
-    if (unit.chargeProgress > 0) {
-      const end = -Math.PI / 2 + unit.chargeProgress * Math.PI * 2;
-      objs.ring.arc(cx, cy, ringR, -Math.PI / 2, end).stroke({
-        color: chargeColor(unit.currentAction.type), width: 4, cap: 'round',
-      });
+    const hpRatio = unit.hp / unit.maxHp;
+    if (hpRatio > 0) {
+      const end = -Math.PI / 2 + hpRatio * Math.PI * 2;
+      const hpColor = hpRatio > 0.6 ? 0x27ae60 : hpRatio > 0.3 ? 0xf39c12 : 0xe74c3c;
+      objs.ring.arc(cx, cy, ringR, -Math.PI / 2, end).stroke({ color: hpColor, width: 4, cap: 'round' });
     }
   }
 
