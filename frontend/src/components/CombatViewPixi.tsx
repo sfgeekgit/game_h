@@ -247,6 +247,20 @@ function drawEffects(g: Graphics, effects: ActiveEffect[]): ActiveEffect[] {
   return surviving;
 }
 
+// Client-side interpolation for networked mode: extrapolate chargeProgress between server polls
+function interpolateForDisplay(state: CombatState, msSincePoll: number): CombatState {
+  if (msSincePoll <= 0) return state;
+  const dtSec = msSincePoll / 1000;
+  return {
+    ...state,
+    units: state.units.map(unit => {
+      if (!unit.alive || unit.currentAction.type === 'idle' || unit.chargeTarget <= 0) return unit;
+      const chargeProgress = Math.min(unit.chargeProgress + dtSec / unit.chargeTarget, 1.0);
+      return { ...unit, chargeProgress };
+    }),
+  };
+}
+
 // --- Component ---
 
 interface CombatViewPixiProps {
@@ -293,6 +307,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   const activeEffectsRef = useRef<ActiveEffect[]>([]);
   const prevUnitActionsRef = useRef<Map<string, UnitAction>>(new Map());
   const lastEventTickRef = useRef(0); // last tickCount we checked events for
+  const lastPollTimeRef = useRef(performance.now()); // timestamp of last server poll
 
   // Move queue: up to 2 pending moves per unit (beyond current move)
   const moveQueueRef = useRef<Map<string, Array<{ toX: number; toY: number }>>>(new Map());
@@ -556,12 +571,11 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     let animId: number;
 
     if (isNetworked) {
-      // Networked: render only when state changed or effects are playing
+      // Networked: render every frame with interpolated state for smooth animation
       const renderLoop = (_timestamp: number) => {
-        if (renderDirtyRef.current || activeEffectsRef.current.length > 0) {
-          renderToPixi(combatStateRef.current);
-          renderDirtyRef.current = false;
-        }
+        const msSincePoll = performance.now() - lastPollTimeRef.current;
+        const displayState = interpolateForDisplay(combatStateRef.current, msSincePoll);
+        renderToPixi(displayState);
         animId = requestAnimationFrame(renderLoop);
       };
       animId = requestAnimationFrame(renderLoop);
@@ -575,7 +589,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
           if (result.state.tickCount === combatStateRef.current.tickCount) return;
           detectSpellFires(result.state);
           combatStateRef.current = result.state;
-          renderDirtyRef.current = true;
+          lastPollTimeRef.current = performance.now();
           setCombatState(result.state);
         }).catch(console.error).finally(() => { pollInFlight = false; });
       }, 500);
@@ -685,6 +699,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     activeEffectsRef.current = [];
     moveQueueRef.current.clear();
     lastEventTickRef.current = 0;
+    lastPollTimeRef.current = performance.now();
     renderDirtyRef.current = true;
     prevUnitActionsRef.current.clear();
     for (const unit of state.units) {
@@ -804,6 +819,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
                 onSelect={() => { setSelectedHeroId(hero.id); setPendingSpell(null); }}
                 onToggleAuto={() => enqueue({ type: 'toggle_auto_attack', unitId: hero.id })}
                 onCancel={() => { enqueue({ type: 'cancel_action', unitId: hero.id }); moveQueueRef.current.delete(hero.id); }}
+                smoothBars={isNetworked}
               />
             ))}
           </div>
@@ -814,6 +830,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
               <EnemyCard
                 key={enemy.id}
                 enemy={enemy}
+                smoothBars={isNetworked}
                 onClick={() => {
                   if (selectedHero?.alive && enemy.alive) {
                     if (pendingSpell) {
@@ -853,12 +870,13 @@ function chargeColorCSS(actionType: UnitAction['type']): string {
   return '#f39c12';
 }
 
-function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
+function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel, smoothBars }: {
   hero: UnitDef;
   isSelected: boolean;
   onSelect: () => void;
   onToggleAuto: () => void;
   onCancel: () => void;
+  smoothBars?: boolean;
 }) {
   const actionLabel = hero.currentAction.type === 'idle'
     ? 'Idle'
@@ -867,6 +885,7 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
       : hero.currentAction.type === 'charging_spell'
         ? `Casting ${SPELLS[hero.currentAction.spellId]?.name ?? '?'}`
         : 'Moving';
+  const barTransition = smoothBars ? { transition: 'width 0.45s linear' } : {};
 
   return (
     <div onClick={onSelect} style={{ ...styles.unitCard, borderColor: isSelected ? '#f1c40f' : 'transparent', opacity: hero.alive ? 1 : 0.4 }}>
@@ -875,18 +894,18 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
         <span style={{ fontSize: '10px', color: '#aaa' }}>{hero.weapon.name}</span>
       </div>
       <div style={styles.barOuter}>
-        <div style={{ ...styles.barInner, width: `${(hero.hp / hero.maxHp) * 100}%`, backgroundColor: '#27ae60' }} />
+        <div style={{ ...styles.barInner, ...barTransition, width: `${(hero.hp / hero.maxHp) * 100}%`, backgroundColor: '#27ae60' }} />
         <span style={styles.barLabel}>HP {hero.hp}/{hero.maxHp}</span>
       </div>
       {hero.maxMana > 0 && (
         <div style={styles.barOuter}>
-          <div style={{ ...styles.barInner, width: `${(hero.mana / hero.maxMana) * 100}%`, backgroundColor: '#2980b9' }} />
+          <div style={{ ...styles.barInner, ...barTransition, width: `${(hero.mana / hero.maxMana) * 100}%`, backgroundColor: '#2980b9' }} />
           <span style={styles.barLabel}>MP {hero.mana}/{hero.maxMana}</span>
         </div>
       )}
       {hero.currentAction.type !== 'moving' && (
         <div style={styles.barOuter}>
-          <div style={{ ...styles.barInner, width: `${hero.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(hero.currentAction.type) }} />
+          <div style={{ ...styles.barInner, ...barTransition, width: `${hero.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(hero.currentAction.type) }} />
           <span style={styles.barLabel}>{actionLabel} {hero.currentAction.type !== 'idle' ? `${Math.round(hero.chargeProgress * 100)}%` : ''}</span>
         </div>
       )}
@@ -903,7 +922,8 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
   );
 }
 
-function EnemyCard({ enemy, onClick }: { enemy: UnitDef; onClick: () => void }) {
+function EnemyCard({ enemy, onClick, smoothBars }: { enemy: UnitDef; onClick: () => void; smoothBars?: boolean }) {
+  const barTransition = smoothBars ? { transition: 'width 0.45s linear' } : {};
   return (
     <div onClick={onClick} style={{ ...styles.unitCard, opacity: enemy.alive ? 1 : 0.3, cursor: enemy.alive ? 'pointer' : 'default' }}>
       <div style={styles.unitCardHeader}>
@@ -911,12 +931,12 @@ function EnemyCard({ enemy, onClick }: { enemy: UnitDef; onClick: () => void }) 
         <span style={{ fontSize: '10px', color: '#aaa' }}>({enemy.x},{enemy.y})</span>
       </div>
       <div style={styles.barOuter}>
-        <div style={{ ...styles.barInner, width: `${(enemy.hp / enemy.maxHp) * 100}%`, backgroundColor: '#c0392b' }} />
+        <div style={{ ...styles.barInner, ...barTransition, width: `${(enemy.hp / enemy.maxHp) * 100}%`, backgroundColor: '#c0392b' }} />
         <span style={styles.barLabel}>HP {enemy.hp}/{enemy.maxHp}</span>
       </div>
       {enemy.alive && enemy.currentAction.type !== 'moving' && (
         <div style={styles.barOuter}>
-          <div style={{ ...styles.barInner, width: `${enemy.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(enemy.currentAction.type) }} />
+          <div style={{ ...styles.barInner, ...barTransition, width: `${enemy.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(enemy.currentAction.type) }} />
           <span style={styles.barLabel}>{enemy.currentAction.type !== 'idle' ? `${Math.round(enemy.chargeProgress * 100)}%` : ''}</span>
         </div>
       )}
