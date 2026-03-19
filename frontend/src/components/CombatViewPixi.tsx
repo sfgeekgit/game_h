@@ -517,7 +517,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       }
 
       if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
-        const fizzled = newState.events.some(e => e.tick === thisTick && e.unitId === unit.id && e.fizzled);
+        const fizzled = newState.events.some(e => e.tick >= fromTick && e.tick <= thisTick && e.unitId === unit.id && e.fizzled);
         const spell = SPELLS[prevAction.spellId];
         if (!fizzled && spell) {
           const casterPx = unit.x * ts + ts / 2;
