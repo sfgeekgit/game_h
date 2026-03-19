@@ -247,6 +247,20 @@ function drawEffects(g: Graphics, effects: ActiveEffect[]): ActiveEffect[] {
   return surviving;
 }
 
+// Client-side interpolation for networked mode: extrapolate chargeProgress between server polls
+function interpolateForDisplay(state: CombatState, msSincePoll: number): CombatState {
+  if (msSincePoll <= 0) return state;
+  const dtSec = msSincePoll / 1000;
+  return {
+    ...state,
+    units: state.units.map(unit => {
+      if (!unit.alive || unit.currentAction.type === 'idle' || unit.chargeTarget <= 0) return unit;
+      const chargeProgress = Math.min(unit.chargeProgress + dtSec / unit.chargeTarget, 1.0);
+      return { ...unit, chargeProgress };
+    }),
+  };
+}
+
 // --- Component ---
 
 interface CombatViewPixiProps {
@@ -292,6 +306,11 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   // Effect animation state
   const activeEffectsRef = useRef<ActiveEffect[]>([]);
   const prevUnitActionsRef = useRef<Map<string, UnitAction>>(new Map());
+  const lastEventTickRef = useRef(0); // last tickCount we checked events for
+  const lastPollTimeRef = useRef(performance.now()); // timestamp of last server poll
+
+  // Move queue: up to 2 pending moves per unit (beyond current move)
+  const moveQueueRef = useRef<Map<string, Array<{ toX: number; toY: number }>>>(new Map());
 
   // Refs kept in sync for use inside Pixi callbacks (no stale closures)
   const pendingSpellRef = useRef(pendingSpell);
@@ -340,10 +359,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
           const unitOnTile = state.units.find(u => u.alive && u.x === x && u.y === y);
           if (unitOnTile) {
             enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: x, targetY: y, targetUnitId: unitOnTile.id });
+            moveQueueRef.current.delete(hero.id);
           }
           // If no unit on tile, cancel targeting without casting
         } else {
           enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: x, targetY: y });
+          moveQueueRef.current.delete(hero.id);
         }
       }
       setPendingSpell(null);
@@ -352,6 +373,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     }
     if (enemyOnTile) {
       enqueue({ type: 'set_weapon_target', unitId: hero.id, targetId: enemyOnTile.id, autoAttack: hero.autoAttack });
+      moveQueueRef.current.delete(hero.id);
       return;
     }
     if (friendlyOnTile && friendlyOnTile.id !== hero.id) {
@@ -359,8 +381,20 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       selectedHeroIdRef.current = friendlyOnTile.id;
       return;
     }
-    if (manhattanDistance(hero.x, hero.y, x, y) === 1) {
-      enqueue({ type: 'move_unit', unitId: hero.id, toX: x, toY: y });
+    // Movement: use effective position (end of current move + queued moves) for adjacency check
+    const queue = moveQueueRef.current.get(hero.id) ?? [];
+    const effX = queue.length > 0 ? queue[queue.length - 1].toX
+      : hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
+    const effY = queue.length > 0 ? queue[queue.length - 1].toY
+      : hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
+    if (manhattanDistance(effX, effY, x, y) === 1) {
+      if (hero.currentAction.type === 'moving' || queue.length > 0) {
+        if (queue.length < 2) {
+          moveQueueRef.current.set(hero.id, [...queue, { toX: x, toY: y }]);
+        }
+      } else {
+        enqueue({ type: 'move_unit', unitId: hero.id, toX: x, toY: y });
+      }
     }
   }, [enqueue]);
 
@@ -464,14 +498,26 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     renderToPixi(combatStateRef.current);
   }, [selectedHeroId, renderToPixi]);
 
-  // Detect spell fires from state transition and spawn visual effects
+  // Detect spell fires from state transition and spawn visual effects; also drain move queue
   const detectSpellFires = useCallback((newState: CombatState) => {
     const thisTick = newState.tickCount - 1;
+    const fromTick = lastEventTickRef.current;
     const ts = tileSizeRef.current;
     for (const unit of newState.units) {
       const prevAction = prevUnitActionsRef.current.get(unit.id);
+
+      // Drain move queue when a unit finishes moving
+      if (prevAction?.type === 'moving' && unit.currentAction.type === 'idle' && unit.side === mySideRef.current) {
+        const queue = moveQueueRef.current.get(unit.id) ?? [];
+        if (queue.length > 0) {
+          const [next, ...rest] = queue;
+          moveQueueRef.current.set(unit.id, rest);
+          enqueue({ type: 'move_unit', unitId: unit.id, toX: next.toX, toY: next.toY });
+        }
+      }
+
       if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
-        const fizzled = newState.events.some(e => e.tick === thisTick && e.unitId === unit.id && e.fizzled);
+        const fizzled = newState.events.some(e => e.tick >= fromTick && e.tick <= thisTick && e.unitId === unit.id && e.fizzled);
         const spell = SPELLS[prevAction.spellId];
         if (!fizzled && spell) {
           const casterPx = unit.x * ts + ts / 2;
@@ -494,9 +540,11 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       prevUnitActionsRef.current.set(unit.id, unit.currentAction);
     }
 
-    // Detect weapon hits from events (event-based, since auto-attack stays in charging_weapon)
+    lastEventTickRef.current = newState.tickCount;
+
+    // Detect weapon hits from all ticks since last poll (networked mode may skip many ticks)
     for (const evt of newState.events) {
-      if (evt.tick !== thisTick || evt.source !== 'weapon') continue;
+      if (evt.tick < fromTick || evt.tick > thisTick || evt.source !== 'weapon') continue;
       if (!evt.unitId || !evt.targetId || !evt.damage) continue;
       const attacker = newState.units.find(u => u.id === evt.unitId);
       const target = newState.units.find(u => u.id === evt.targetId);
@@ -515,7 +563,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
         particles: makeParticles(particleCount),
       });
     }
-  }, []);
+  }, [enqueue]);
 
   // Game loop — local mode runs combatTick locally, networked mode uses server state
   useEffect(() => {
@@ -523,12 +571,11 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     let animId: number;
 
     if (isNetworked) {
-      // Networked: render only when state changed or effects are playing
+      // Networked: render every frame with interpolated state for smooth animation
       const renderLoop = (_timestamp: number) => {
-        if (renderDirtyRef.current || activeEffectsRef.current.length > 0) {
-          renderToPixi(combatStateRef.current);
-          renderDirtyRef.current = false;
-        }
+        const msSincePoll = performance.now() - lastPollTimeRef.current;
+        const displayState = interpolateForDisplay(combatStateRef.current, msSincePoll);
+        renderToPixi(displayState);
         animId = requestAnimationFrame(renderLoop);
       };
       animId = requestAnimationFrame(renderLoop);
@@ -542,7 +589,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
           if (result.state.tickCount === combatStateRef.current.tickCount) return;
           detectSpellFires(result.state);
           combatStateRef.current = result.state;
-          renderDirtyRef.current = true;
+          lastPollTimeRef.current = performance.now();
           setCombatState(result.state);
         }).catch(console.error).finally(() => { pollInFlight = false; });
       }, 500);
@@ -587,7 +634,30 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') dx = 1;
       else return;
       e.preventDefault();
-      enqueue({ type: 'move_unit', unitId: hero.id, toX: hero.x + dx, toY: hero.y + dy });
+      // If hero is idle and target tile has an enemy, treat as attack
+      const toX = hero.x + dx;
+      const toY = hero.y + dy;
+      if (hero.currentAction.type !== 'moving') {
+        const enemy = state.units.find(u => u.side !== mySideRef.current && u.alive && u.x === toX && u.y === toY);
+        if (enemy) {
+          enqueue({ type: 'set_weapon_target', unitId: hero.id, targetId: enemy.id, autoAttack: hero.autoAttack });
+          moveQueueRef.current.delete(hero.id);
+          return;
+        }
+      }
+      // Queue if mid-move, otherwise send immediately
+      const queue = moveQueueRef.current.get(hero.id) ?? [];
+      const effX = queue.length > 0 ? queue[queue.length - 1].toX
+        : hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
+      const effY = queue.length > 0 ? queue[queue.length - 1].toY
+        : hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
+      if (hero.currentAction.type === 'moving' || queue.length > 0) {
+        if (queue.length < 2) {
+          moveQueueRef.current.set(hero.id, [...queue, { toX: effX + dx, toY: effY + dy }]);
+        }
+      } else {
+        enqueue({ type: 'move_unit', unitId: hero.id, toX, toY });
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -607,6 +677,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
 
   const handleSpellClick = useCallback((spell: SpellDef) => {
     if (!selectedHero?.alive) return;
+    // Re-clicking the active spell cancels targeting
+    if (pendingSpellRef.current?.id === spell.id) {
+      setPendingSpell(null);
+      pendingSpellRef.current = null;
+      return;
+    }
     if (selectedHero.mana < spell.manaCost) return;
     setPendingSpell(spell);
   }, [selectedHero]);
@@ -621,6 +697,9 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     pendingSpellRef.current = null;
     lastFrameRef.current = 0;
     activeEffectsRef.current = [];
+    moveQueueRef.current.clear();
+    lastEventTickRef.current = 0;
+    lastPollTimeRef.current = performance.now();
     renderDirtyRef.current = true;
     prevUnitActionsRef.current.clear();
     for (const unit of state.units) {
@@ -739,7 +818,8 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
                 isSelected={hero.id === selectedHeroId}
                 onSelect={() => { setSelectedHeroId(hero.id); setPendingSpell(null); }}
                 onToggleAuto={() => enqueue({ type: 'toggle_auto_attack', unitId: hero.id })}
-                onCancel={() => enqueue({ type: 'cancel_action', unitId: hero.id })}
+                onCancel={() => { enqueue({ type: 'cancel_action', unitId: hero.id }); moveQueueRef.current.delete(hero.id); }}
+                smoothBars={isNetworked}
               />
             ))}
           </div>
@@ -750,6 +830,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
               <EnemyCard
                 key={enemy.id}
                 enemy={enemy}
+                smoothBars={isNetworked}
                 onClick={() => {
                   if (selectedHero?.alive && enemy.alive) {
                     if (pendingSpell) {
@@ -789,12 +870,13 @@ function chargeColorCSS(actionType: UnitAction['type']): string {
   return '#f39c12';
 }
 
-function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
+function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel, smoothBars }: {
   hero: UnitDef;
   isSelected: boolean;
   onSelect: () => void;
   onToggleAuto: () => void;
   onCancel: () => void;
+  smoothBars?: boolean;
 }) {
   const actionLabel = hero.currentAction.type === 'idle'
     ? 'Idle'
@@ -803,6 +885,7 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
       : hero.currentAction.type === 'charging_spell'
         ? `Casting ${SPELLS[hero.currentAction.spellId]?.name ?? '?'}`
         : 'Moving';
+  const barTransition = smoothBars ? { transition: 'width 0.45s linear' } : {};
 
   return (
     <div onClick={onSelect} style={{ ...styles.unitCard, borderColor: isSelected ? '#f1c40f' : 'transparent', opacity: hero.alive ? 1 : 0.4 }}>
@@ -811,18 +894,18 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
         <span style={{ fontSize: '10px', color: '#aaa' }}>{hero.weapon.name}</span>
       </div>
       <div style={styles.barOuter}>
-        <div style={{ ...styles.barInner, width: `${(hero.hp / hero.maxHp) * 100}%`, backgroundColor: '#27ae60' }} />
+        <div style={{ ...styles.barInner, ...barTransition, width: `${(hero.hp / hero.maxHp) * 100}%`, backgroundColor: '#27ae60' }} />
         <span style={styles.barLabel}>HP {hero.hp}/{hero.maxHp}</span>
       </div>
       {hero.maxMana > 0 && (
         <div style={styles.barOuter}>
-          <div style={{ ...styles.barInner, width: `${(hero.mana / hero.maxMana) * 100}%`, backgroundColor: '#2980b9' }} />
+          <div style={{ ...styles.barInner, ...barTransition, width: `${(hero.mana / hero.maxMana) * 100}%`, backgroundColor: '#2980b9' }} />
           <span style={styles.barLabel}>MP {hero.mana}/{hero.maxMana}</span>
         </div>
       )}
       {hero.currentAction.type !== 'moving' && (
         <div style={styles.barOuter}>
-          <div style={{ ...styles.barInner, width: `${hero.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(hero.currentAction.type) }} />
+          <div style={{ ...styles.barInner, ...barTransition, width: `${hero.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(hero.currentAction.type) }} />
           <span style={styles.barLabel}>{actionLabel} {hero.currentAction.type !== 'idle' ? `${Math.round(hero.chargeProgress * 100)}%` : ''}</span>
         </div>
       )}
@@ -830,7 +913,7 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
         <div style={styles.unitControls}>
           <label style={{ fontSize: '10px', cursor: 'pointer', color: '#aaa' }}>
             <input type="checkbox" checked={hero.autoAttack} onChange={(e) => { e.stopPropagation(); onToggleAuto(); }} style={{ marginRight: 3 }} />
-            Repeat
+            Repeat Attack
           </label>
           <button onClick={(e) => { e.stopPropagation(); onCancel(); }} style={styles.smallBtn}>Cancel</button>
         </div>
@@ -839,7 +922,8 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel }: {
   );
 }
 
-function EnemyCard({ enemy, onClick }: { enemy: UnitDef; onClick: () => void }) {
+function EnemyCard({ enemy, onClick, smoothBars }: { enemy: UnitDef; onClick: () => void; smoothBars?: boolean }) {
+  const barTransition = smoothBars ? { transition: 'width 0.45s linear' } : {};
   return (
     <div onClick={onClick} style={{ ...styles.unitCard, opacity: enemy.alive ? 1 : 0.3, cursor: enemy.alive ? 'pointer' : 'default' }}>
       <div style={styles.unitCardHeader}>
@@ -847,12 +931,12 @@ function EnemyCard({ enemy, onClick }: { enemy: UnitDef; onClick: () => void }) 
         <span style={{ fontSize: '10px', color: '#aaa' }}>({enemy.x},{enemy.y})</span>
       </div>
       <div style={styles.barOuter}>
-        <div style={{ ...styles.barInner, width: `${(enemy.hp / enemy.maxHp) * 100}%`, backgroundColor: '#c0392b' }} />
+        <div style={{ ...styles.barInner, ...barTransition, width: `${(enemy.hp / enemy.maxHp) * 100}%`, backgroundColor: '#c0392b' }} />
         <span style={styles.barLabel}>HP {enemy.hp}/{enemy.maxHp}</span>
       </div>
       {enemy.alive && enemy.currentAction.type !== 'moving' && (
         <div style={styles.barOuter}>
-          <div style={{ ...styles.barInner, width: `${enemy.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(enemy.currentAction.type) }} />
+          <div style={{ ...styles.barInner, ...barTransition, width: `${enemy.chargeProgress * 100}%`, backgroundColor: chargeColorCSS(enemy.currentAction.type) }} />
           <span style={styles.barLabel}>{enemy.currentAction.type !== 'idle' ? `${Math.round(enemy.chargeProgress * 100)}%` : ''}</span>
         </div>
       )}
