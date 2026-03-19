@@ -16,9 +16,9 @@ export function createApp() {
   const app = express();
 
   // Trust reverse proxy (Caddy) — needed for secure cookies, rate limiting, etc.
-  if (process.env.NODE_ENV === 'production') {
-    app.set('trust proxy', 1);
-  }
+  // Always enabled: both dev and prod are served through Caddy which sets X-Forwarded-For.
+  // Without this, rate-limit treats all users as the same IP and they share one bucket.
+  app.set('trust proxy', 1);
 
   // Security headers
   app.use(helmet());
@@ -34,14 +34,31 @@ export function createApp() {
   // Rate limiting on API routes
   const API_WINDOW_MS = 4 * 60 * 1000;
   const API_WINDOW_MINUTES = API_WINDOW_MS / (60 * 1000);
+  const API_MAX_REQUESTS = 720;
+  const COMBAT_RATE_MULTIPLIER = 5;
+
+  // Combat gets a higher limit (COMBAT_RATE_MULTIPLIER x) — registered first so it takes precedence
+  app.use(
+    '/api/combat/',
+    rateLimit({
+      windowMs: API_WINDOW_MS,
+      max: API_MAX_REQUESTS * COMBAT_RATE_MULTIPLIER,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: `[combat] Rate limited. Please wait ${API_WINDOW_MINUTES} minutes and try again.` },
+    }),
+  );
+
+  // General limit for all other API routes (combat has its own limiter above)
   app.use(
     '/api/',
     rateLimit({
       windowMs: API_WINDOW_MS,
-      max: 720,
+      max: API_MAX_REQUESTS,
+      skip: (req) => req.path.startsWith('/combat'),
       standardHeaders: true,
       legacyHeaders: false,
-      message: { error: `You've been rate limited. Please wait ${API_WINDOW_MINUTES} minutes and try again.` },
+      message: { error: `[general] Rate limited. Please wait ${API_WINDOW_MINUTES} minutes and try again.` },
     }),
   );
 
