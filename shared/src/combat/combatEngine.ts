@@ -1,7 +1,7 @@
 import type {
   CombatState, CombatEvent, CombatTile, PlayerCommand, UnitDef, UnitSide, UnitAction,
+  WeaponDef, SpellDef,
 } from './combatTypes.js';
-import { SPELLS } from './spells.js';
 import { createTestHeroes, createTestEnemies, createPvpEnemyParty, createPvpMonsters } from './combatData.js';
 import { createArena } from './combatMap.js';
 
@@ -38,7 +38,7 @@ function tilePassable(state: CombatState, x: number, y: number): boolean {
 function findTargetsInRange(state: CombatState, unit: UnitDef): UnitDef[] {
   return state.units.filter(u =>
     u.alive && u.side !== unit.side &&
-    manhattanDistance(unit.x, unit.y, u.x, u.y) <= unit.weapon.range
+    manhattanDistance(unit.x, unit.y, u.x, u.y) <= unit.weapon.reach
   );
 }
 
@@ -125,9 +125,9 @@ function runAI(state: CombatState) {
     }
     if (!nearest) continue;
 
-    if (nearestDist <= unit.weapon.range) {
+    if (nearestDist <= unit.weapon.reach) {
       unit.currentAction = { type: 'charging_weapon', targetId: nearest.id };
-      unit.chargeTarget = unit.weapon.speed;
+      unit.chargeTarget = unit.weapon.castTime;
       unit.chargeProgress = 0;
     } else {
       // Move toward nearest target
@@ -203,7 +203,7 @@ function checkTargetRanges(state: CombatState) {
     if (action.type === 'charging_weapon') {
       const target = getUnit(state, action.targetId);
       if (!target || !target.alive) continue; // let resolveActions handle target death
-      if (manhattanDistance(unit.x, unit.y, target.x, target.y) > unit.weapon.range) {
+      if (manhattanDistance(unit.x, unit.y, target.x, target.y) > unit.weapon.reach) {
         const wasAuto = unit.autoAttack;
         resetToIdle(unit);
         unit.autoAttack = false;
@@ -213,10 +213,10 @@ function checkTargetRanges(state: CombatState) {
         );
       }
     } else if (action.type === 'charging_spell' && action.targetUnitId) {
-      const spell = SPELLS[action.spellId];
+      const spell = state.spellCatalog[action.spellId];
       const target = getUnit(state, action.targetUnitId);
       if (!spell || !target || !target.alive) continue; // let resolveActions handle these
-      if (manhattanDistance(unit.x, unit.y, target.x, target.y) > spell.range) {
+      if (manhattanDistance(unit.x, unit.y, target.x, target.y) > spell.reach) {
         resetToIdle(unit);
         addEvent(state,
           `${unit.name}'s ${spell.name} fizzles — ${target.name} moved out of range`,
@@ -239,14 +239,14 @@ function processCommands(state: CombatState, commands: PlayerCommand[]) {
         const target = getUnit(state, cmd.targetId);
         if (!target || !target.alive) break;
         unit.currentAction = { type: 'charging_weapon', targetId: cmd.targetId };
-        unit.chargeTarget = unit.weapon.speed;
+        unit.chargeTarget = unit.weapon.castTime;
         unit.chargeProgress = 0;
         unit.autoAttack = cmd.autoAttack;
         addEvent(state, `${unit.name} targets ${target.name}`, { unitId: unit.id, targetId: target.id });
         break;
       }
       case 'cast_spell': {
-        const spell = SPELLS[cmd.spellId];
+        const spell = state.spellCatalog[cmd.spellId];
         if (!spell) break;
         if (unit.mana < spell.manaCost) {
           addEvent(state, `${unit.name} doesn't have enough mana for ${spell.name}`, { unitId: unit.id });
@@ -259,7 +259,7 @@ function processCommands(state: CombatState, commands: PlayerCommand[]) {
         const rangeCheckY = cmd.targetUnitId
           ? (getUnit(state, cmd.targetUnitId)?.y ?? cmd.targetY)
           : cmd.targetY;
-        if (manhattanDistance(unit.x, unit.y, rangeCheckX, rangeCheckY) > spell.range) {
+        if (manhattanDistance(unit.x, unit.y, rangeCheckX, rangeCheckY) > spell.reach) {
           addEvent(state, `${spell.name} target is out of range`, { unitId: unit.id });
           break;
         }
@@ -286,7 +286,7 @@ function processCommands(state: CombatState, commands: PlayerCommand[]) {
       }
       case 'cancel_action':
         if (unit.currentAction.type === 'charging_spell') {
-          const spell = SPELLS[unit.currentAction.spellId];
+          const spell = state.spellCatalog[unit.currentAction.spellId];
           addEvent(state, `${unit.name}'s ${spell?.name ?? 'spell'} cancelled`, { unitId: unit.id, fizzled: true });
         }
         resetToIdle(unit);
@@ -325,7 +325,7 @@ function resolveActions(state: CombatState) {
       }
 
       const dist = manhattanDistance(unit.x, unit.y, target.x, target.y);
-      if (dist > unit.weapon.range) {
+      if (dist > unit.weapon.reach) {
         addEvent(state, `${unit.name}'s target is out of range`, { unitId: unit.id });
         resetToIdle(unit);
         continue;
@@ -361,7 +361,7 @@ function resolveActions(state: CombatState) {
         resetToIdle(unit);
       }
     } else if (action.type === 'charging_spell') {
-      const spell = SPELLS[action.spellId];
+      const spell = state.spellCatalog[action.spellId];
       if (!spell) {
         resetToIdle(unit);
         continue;
@@ -400,7 +400,7 @@ function resolveActions(state: CombatState) {
         let fizzleMsg = `${unit.name}'s ${spell.name} fizzles — no target`;
         if (action.targetUnitId) {
           const tracked = state.units.find(u => u.alive && u.id === action.targetUnitId);
-          if (tracked && manhattanDistance(unit.x, unit.y, tracked.x, tracked.y) > spell.range) {
+          if (tracked && manhattanDistance(unit.x, unit.y, tracked.x, tracked.y) > spell.reach) {
             fizzleMsg = `${unit.name}'s ${spell.name} fizzles — target moved out of range`;
           } else {
             target = tracked;
@@ -496,10 +496,13 @@ export function combatTick(state: CombatState, dtMs: number, commands: PlayerCom
 
 // --- Factory ---
 
-export function createCombatState(): CombatState {
+export function createCombatState(
+  weapons: Record<string, WeaponDef>,
+  spells: Record<string, SpellDef>,
+): CombatState {
   const arena = createArena();
-  const heroes = createTestHeroes();
-  const enemies = createTestEnemies();
+  const heroes = createTestHeroes(weapons);
+  const enemies = createTestEnemies(weapons);
 
   return {
     gridWidth: arena.width,
@@ -512,15 +515,19 @@ export function createCombatState(): CombatState {
     outcome: 'ongoing',
     randomPool: makeRandomPool(),
     randomIndex: 0,
+    spellCatalog: spells,
   };
 }
 
 /** PVP arena: hero party (left) vs enemy party (right) with NPC monsters in the middle */
-export function createPvpCombatState(): CombatState {
+export function createPvpCombatState(
+  weapons: Record<string, WeaponDef>,
+  spells: Record<string, SpellDef>,
+): CombatState {
   const arena = createArena();
-  const heroes = createTestHeroes();
-  const enemyParty = createPvpEnemyParty();
-  const monsters = createPvpMonsters();
+  const heroes = createTestHeroes(weapons);
+  const enemyParty = createPvpEnemyParty(weapons);
+  const monsters = createPvpMonsters(weapons);
 
   return {
     gridWidth: arena.width,
@@ -533,5 +540,6 @@ export function createPvpCombatState(): CombatState {
     outcome: 'ongoing',
     randomPool: makeRandomPool(),
     randomIndex: 0,
+    spellCatalog: spells,
   };
 }

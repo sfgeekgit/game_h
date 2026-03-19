@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import type { CombatState, PlayerCommand, UnitSide } from '@game_h/shared';
+import type { CombatState, PlayerCommand, UnitSide, WeaponDef, SpellDef } from '@game_h/shared';
 
 export interface CombatSessionResult {
   sessionId: string;
@@ -31,4 +31,7 @@ export const combatApi = {
 
   findPvp: () =>
     api.get<CombatSessionResult>('/combat/find-pvp'),
+
+  catalog: () =>
+    api.get<{ weapons: Record<string, WeaponDef>; spells: Record<string, SpellDef> }>('/combat/catalog'),
 };

@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Application, Container, Graphics, Text, Rectangle } from 'pixi.js';
 import {
-  combatTick, createCombatState, manhattanDistance, SPELLS,
+  combatTick, createCombatState, manhattanDistance,
 } from '@game_h/shared';
 import type {
-  CombatState, PlayerCommand, UnitDef, UnitSide, SpellDef, UnitAction,
+  CombatState, PlayerCommand, UnitDef, UnitSide, SpellDef, UnitAction, WeaponDef,
 } from '@game_h/shared';
-import { SPELL_ANIM_REGISTRY, type SpellEffectState } from '../spellAnimations.js';
+import type { SpellEffectState, AnimFn } from '../animTypes.js';
+import { SPELL_ANIM_REGISTRY } from '../spellAnimations.js';
 import { WEAPON_ANIM_REGISTRY } from '../weaponAnimations.js';
 import { combatApi } from '../combatApi.js';
 
 // Merged registry for single-lookup in the hot render path
-const ANIM_REGISTRY: Record<string, typeof SPELL_ANIM_REGISTRY[string]> = {
+const ANIM_REGISTRY: Record<string, AnimFn> = {
   ...SPELL_ANIM_REGISTRY,
   ...WEAPON_ANIM_REGISTRY,
 };
@@ -71,7 +72,7 @@ function updateHighlights(
     // Spell range: per-tile purple fill
     for (let y = 0; y < state.gridHeight; y++) {
       for (let x = 0; x < state.gridWidth; x++) {
-        if (manhattanDistance(hero.x, hero.y, x, y) <= spell.range) {
+        if (manhattanDistance(hero.x, hero.y, x, y) <= spell.reach) {
           g.rect(x * ts + 1, y * ts + 1, ts - 2, ts - 2);
           g.fill({ color: 0x9333ea, alpha: 0.3 });
         }
@@ -79,7 +80,7 @@ function updateHighlights(
     }
   } else if (hero) {
     // Weapon range: faint orange highlight per tile within manhattan distance
-    const r = hero.weapon.range;
+    const r = hero.weapon.reach;
     for (let y = 0; y < state.gridHeight; y++) {
       for (let x = 0; x < state.gridWidth; x++) {
         if (manhattanDistance(hero.x, hero.y, x, y) <= r) {
@@ -125,7 +126,7 @@ function updateOverlays(g: Graphics, state: CombatState, ts: number): void {
         : { cx: tileX * ts + ts / 2, cy: tileY * ts + ts / 2 };
       g.moveTo(cx, cy).lineTo(tx, ty).stroke({ color: 0x9333ea, width: 1.5, alpha: 0.75 });
       g.moveTo(cx, cy).lineTo(cx + (tx - cx) * unit.chargeProgress, cy + (ty - cy) * unit.chargeProgress).stroke({ color: 0x9333ea, width: 4, alpha: 0.85 });
-      const spell = SPELLS[action.spellId];
+      const spell = state.spellCatalog[action.spellId];
       if (spell && spell.aoeRadius > 0) {
         // Draw only outer perimeter edges — edge is outer if its neighbor is outside the blast radius
         const aoeStroke = { color: 0x9333ea, width: 2.5, alpha: 0.9 };
@@ -277,7 +278,9 @@ const COMBAT_APP_PADDING = 32;
 export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initialState }: CombatViewPixiProps) {
   const isNetworked = mode === 'networked' && !!sessionId;
   const mySide: UnitSide = side ?? 'hero';
-  const [combatState, setCombatState] = useState<CombatState>(() => initialState ?? createCombatState());
+  const [catalogLoaded, setCatalogLoaded] = useState(isNetworked);
+  const catalogRef = useRef<{ weapons: Record<string, WeaponDef>; spells: Record<string, SpellDef> } | null>(null);
+  const [combatState, setCombatState] = useState<CombatState>(() => initialState ?? { gridWidth: 9, gridHeight: 7, tiles: [], units: [], events: [], tickCount: 0, elapsedMs: 0, outcome: 'ongoing', randomPool: [], randomIndex: 0, spellCatalog: {} });
   const tileSizeRef = useRef(
     Math.min(MAX_COMBAT_TILE_SIZE, Math.floor((window.innerWidth - COMBAT_APP_PADDING) / (initialState?.gridWidth ?? 9)))
   );
@@ -316,6 +319,19 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   const pendingSpellRef = useRef(pendingSpell);
   const selectedHeroIdRef = useRef(selectedHeroId);
 
+  // Load catalog for local mode (networked mode gets state from server)
+  useEffect(() => {
+    if (isNetworked) return;
+    // Local mode: fetch catalog from backend to get spell/weapon stats
+    combatApi.catalog().then(catalog => {
+      catalogRef.current = catalog;
+      const state = createCombatState(catalog.weapons, catalog.spells);
+      combatStateRef.current = state;
+      setCombatState(state);
+      setCatalogLoaded(true);
+    }).catch(console.error);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const enqueue = useCallback((cmd: PlayerCommand) => {
     if (isNetworked) {
       if (sessionIdRef.current) {
@@ -353,7 +369,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     const friendlyOnTile = state.units.find(u => u.side === mySideNow && u.alive && u.x === x && u.y === y);
     if (spell) {
       const dist = manhattanDistance(hero.x, hero.y, x, y);
-      if (dist <= spell.range) {
+      if (dist <= spell.reach) {
         if (spell.targetType === 'unit') {
           // Unit-targeted spell: lock onto whoever is on this tile
           const unitOnTile = state.units.find(u => u.alive && u.x === x && u.y === y);
@@ -398,9 +414,9 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     }
   }, [enqueue]);
 
-  // Initialize Pixi once
+  // Initialize Pixi once (after catalog is loaded)
   useEffect(() => {
-    if (!canvasContainerRef.current) return;
+    if (!catalogLoaded || !canvasContainerRef.current) return;
     const state = combatStateRef.current;
     const ts = tileSizeRef.current;
     const width = state.gridWidth * ts;
@@ -484,7 +500,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       unitObjectsRef.current.clear();
       activeEffectsRef.current = [];
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [catalogLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-render highlights when pending spell changes
   useEffect(() => {
@@ -518,7 +534,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
 
       if (prevAction?.type === 'charging_spell' && unit.currentAction.type === 'idle') {
         const fizzled = newState.events.some(e => e.tick >= fromTick && e.tick <= thisTick && e.unitId === unit.id && e.fizzled);
-        const spell = SPELLS[prevAction.spellId];
+        const spell = newState.spellCatalog[prevAction.spellId];
         if (!fizzled && spell) {
           const casterPx = unit.x * ts + ts / 2;
           const casterPy = unit.y * ts + ts / 2;
@@ -527,13 +543,13 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
           const targetPx = (targetUnit?.x ?? prevAction.targetX) * ts + ts / 2;
           const targetPy = (targetUnit?.y ?? prevAction.targetY) * ts + ts / 2;
           activeEffectsRef.current.push({
-            animType: spell.animType,
+            animType: spell.anim.type,
             casterPx, casterPy, targetPx, targetPy,
             aoeRadius: spell.aoeRadius,
             tileSize: ts,
             startMs: performance.now(),
-            durationMs: spell.animDurationMs,
-            particles: makeParticles(spell.particleCount),
+            durationMs: spell.anim.ms,
+            particles: makeParticles(spell.anim.particles),
           });
         }
       }
@@ -549,9 +565,9 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       const attacker = newState.units.find(u => u.id === evt.unitId);
       const target = newState.units.find(u => u.id === evt.targetId);
       if (!attacker || !target) continue;
-      const { animType, animDurationMs, particleCount } = attacker.weapon;
+      const { anim } = attacker.weapon;
       activeEffectsRef.current.push({
-        animType,
+        animType: anim.type,
         casterPx: attacker.x * ts + ts / 2,
         casterPy: attacker.y * ts + ts / 2,
         targetPx: target.x * ts + ts / 2,
@@ -559,8 +575,8 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
         aoeRadius: 0,
         tileSize: ts,
         startMs: performance.now(),
-        durationMs: animDurationMs,
-        particles: makeParticles(particleCount),
+        durationMs: anim.ms,
+        particles: makeParticles(anim.particles),
       });
     }
   }, [enqueue]);
@@ -719,8 +735,13 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       }).catch(console.error);
       return;
     }
-    resetToState(createCombatState(), 'hero1');
+    if (!catalogRef.current) return;
+    resetToState(createCombatState(catalogRef.current.weapons, catalogRef.current.spells), 'hero1');
   }, [resetToState, isNetworked]);
+
+  if (!catalogLoaded) {
+    return <div style={{ ...styles.container, alignItems: 'center', justifyContent: 'center' }}>Loading combat data...</div>;
+  }
 
   return (
     <div style={styles.container}>
@@ -776,7 +797,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {selectedHero.spells.map(spellId => {
-                  const spell = SPELLS[spellId];
+                  const spell = combatState.spellCatalog[spellId];
                   if (!spell) return null;
                   const canCast = selectedHero.alive && selectedHero.mana >= spell.manaCost;
                   const isActive = pendingSpell?.id === spellId;
@@ -797,7 +818,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
                         {spell.damage < 0 ? `Heal ${-spell.damage}` : `${spell.damage} dmg`}
                         {spell.aoeRadius > 0 ? ` AoE:${spell.aoeRadius}` : ''}
                         {' · '}{spell.castTime}s · {spell.manaCost}mp
-                        {' · r'}{spell.range === 999 ? '∞' : spell.range}
+                        {' · r'}{spell.reach === 999 ? '∞' : spell.reach}
                       </span>
                     </button>
                   );
@@ -820,6 +841,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
                 onToggleAuto={() => enqueue({ type: 'toggle_auto_attack', unitId: hero.id })}
                 onCancel={() => { enqueue({ type: 'cancel_action', unitId: hero.id }); moveQueueRef.current.delete(hero.id); }}
                 smoothBars={isNetworked}
+                spellCatalog={combatState.spellCatalog}
               />
             ))}
           </div>
@@ -870,20 +892,21 @@ function chargeColorCSS(actionType: UnitAction['type']): string {
   return '#f39c12';
 }
 
-function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel, smoothBars }: {
+function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel, smoothBars, spellCatalog }: {
   hero: UnitDef;
   isSelected: boolean;
   onSelect: () => void;
   onToggleAuto: () => void;
   onCancel: () => void;
   smoothBars?: boolean;
+  spellCatalog: Record<string, SpellDef>;
 }) {
   const actionLabel = hero.currentAction.type === 'idle'
     ? 'Idle'
     : hero.currentAction.type === 'charging_weapon'
       ? 'Attacking'
       : hero.currentAction.type === 'charging_spell'
-        ? `Casting ${SPELLS[hero.currentAction.spellId]?.name ?? '?'}`
+        ? `Casting ${spellCatalog[hero.currentAction.spellId]?.name ?? '?'}`
         : 'Moving';
   const barTransition = smoothBars ? { transition: 'width 0.45s linear' } : {};
 

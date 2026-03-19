@@ -11,8 +11,13 @@ import {
   touchSession,
   validateCommand,
 } from '../combat/sessionManager.js';
+import { getWeapons, getSpells } from '../combat/catalog.js';
 
 const router = Router();
+
+router.get('/catalog', (_req, res) => {
+  res.json({ weapons: getWeapons(), spells: getSpells() });
+});
 
 router.post('/create', (req, res) => {
   const userId = req.session.userId;

@@ -1,5 +1,6 @@
-import { combatTick, createCombatState, createPvpCombatState, SPELLS } from '@game_h/shared';
+import { combatTick, createCombatState, createPvpCombatState } from '@game_h/shared';
 import type { CombatState, PlayerCommand, UnitSide } from '@game_h/shared';
+import { getWeapons, getSpells } from './catalog.js';
 
 const TICK_INTERVAL_MS = 100;
 const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
@@ -32,7 +33,9 @@ export function createSession(
   mode: 'pve' | 'pvp',
 ): { sessionId: string; side: UnitSide; state: CombatState } {
   const id = generateId();
-  const state = mode === 'pvp' ? createPvpCombatState() : createCombatState();
+  const weapons = getWeapons();
+  const spells = getSpells();
+  const state = mode === 'pvp' ? createPvpCombatState(weapons, spells) : createCombatState(weapons, spells);
 
   const session: CombatSession = {
     id,
@@ -148,7 +151,7 @@ export function validateCommand(
       return null;
     }
     case 'cast_spell': {
-      const spell = SPELLS[command.spellId];
+      const spell = state.spellCatalog[command.spellId];
       if (!spell) return 'Unknown spell';
       if (!unit.spells.includes(command.spellId)) return 'Unit does not know this spell';
       if (unit.mana < spell.manaCost) return 'Not enough mana';

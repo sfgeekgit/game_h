@@ -1,30 +1,30 @@
 export type UnitSide = 'hero' | 'enemy' | 'monster';
 
+export interface AnimDef {
+  type: string;       // animation name — references an entry in the source file registries
+  ms: number;         // how long the effect plays
+  particles: number;  // number of particles to spawn
+}
+
 export interface WeaponDef {
   id: string;
   name: string;
   damage: number;
-  speed: number;       // charge time in seconds
-  range: number;       // 1 = melee (adjacent), 2+ = ranged
-  animType: string;       // matches a key in WEAPON_ANIM_REGISTRY
-  animDurationMs: number; // how long the effect plays
-  particleCount: number;  // number of particles to spawn
+  castTime: number;    // charge time in seconds (DB: cast_time)
+  reach: number;       // 1 = melee (adjacent), 2+ = ranged (DB: reach)
+  anim: AnimDef;
 }
 
 export interface SpellDef {
   id: string;
   name: string;
   damage: number;
-  castTime: number;       // charge time in seconds
-  range: number;          // 1 = adjacent, 999 = unlimited
-  aoeRadius: number;      // 0 = single target, N = tile radius
-  manaCost: number;
-  targetType?: 'tile' | 'unit';  // 'unit' = tracks target by ID, not tile position
-
-  // Visual effect properties (used by frontend renderer)
-  animType: string;       // matches a key in SPELL_ANIM_REGISTRY
-  animDurationMs: number; // how long the effect plays
-  particleCount: number;  // number of particles to spawn
+  castTime: number;       // charge time in seconds (DB: cast_time)
+  reach: number;          // 1 = adjacent, 999 = unlimited (DB: reach)
+  aoeRadius: number;      // 0 = single target, N = tile radius (DB: aoe_radius)
+  manaCost: number;       // DB: mana_cost
+  targetType?: 'tile' | 'unit';  // 'unit' = tracks target by ID (DB: target_type)
+  anim: AnimDef;
 }
 
 export type UnitAction =
@@ -81,6 +81,7 @@ export interface CombatState {
   outcome: 'ongoing' | 'victory' | 'defeat';
   randomPool: number[];
   randomIndex: number;
+  spellCatalog: Record<string, SpellDef>;
 }
 
 export type PlayerCommand =

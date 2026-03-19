@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 
 // Install fake timers before importing sessionManager so setInterval is already faked
 vi.useFakeTimers();
@@ -14,8 +14,15 @@ import {
   touchSession,
   validateCommand,
 } from '../combat/sessionManager.js';
+import { loadCombatCatalog } from '../combat/catalog.js';
 import { combatTick } from '@game_h/shared';
 import type { CombatState, PlayerCommand, UnitSide } from '@game_h/shared';
+
+beforeAll(async () => {
+  vi.useRealTimers();
+  await loadCombatCatalog();
+  vi.useFakeTimers();
+});
 
 afterEach(() => { vi.clearAllTimers(); });
 
