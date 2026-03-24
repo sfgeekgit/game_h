@@ -12,10 +12,16 @@
 
 5. **Health display rework** — Move the round HP status bar one row inside the circle. Remove the HP number text (e.g. "25/25") from inside the circle on the map — just show the ring bar. Use the outer ring (where health currently is) for spell/attack charge indicators like it was originally.
 
-6. **Remove thick charge line** — Get rid of the thick progress line toward the target, but keep the thin targeting line that points at the target.
+6. **Replace thick charge line** — Get rid of the thick progress line toward the target, but keep the thin targeting line that points at the target. Instead, use the outer ring status bar.
 
 ## Animation Improvements
 
 7. **General animation polish** — All combat animations could be better.
 
 8. **Animations should originate from attacker** — Currently animations look like they bonk the defender on the head from above. They should visually emerge from the attacker's position and travel toward the defender.
+
+## Input Improvements
+
+9. **Click-to-move pathfinding** — When playing with a mouse, clicking a tile a few tiles away should automatically path the hero there, not just move one step.
+
+10. **Keyboard-only combat** — It should be possible to play an entire combat using only the keyboard. This includes target selection for attacks and spells, which currently requires clicking.

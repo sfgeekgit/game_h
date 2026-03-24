@@ -312,8 +312,8 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   const lastEventTickRef = useRef(0); // last tickCount we checked events for
   const lastPollTimeRef = useRef(performance.now()); // timestamp of last server poll
 
-  // Move queue: up to 2 pending moves per unit (beyond current move)
-  const moveQueueRef = useRef<Map<string, Array<{ toX: number; toY: number }>>>(new Map());
+  // Move queue: up to 4 pending moves per unit stored as directions
+  const moveQueueRef = useRef<Map<string, Array<{ dx: number; dy: number }>>>(new Map());
 
   // Refs kept in sync for use inside Pixi callbacks (no stale closures)
   const pendingSpellRef = useRef(pendingSpell);
@@ -399,14 +399,15 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     }
     // Movement: use effective position (end of current move + queued moves) for adjacency check
     const queue = moveQueueRef.current.get(hero.id) ?? [];
-    const effX = queue.length > 0 ? queue[queue.length - 1].toX
-      : hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
-    const effY = queue.length > 0 ? queue[queue.length - 1].toY
-      : hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
+    let effX = hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
+    let effY = hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
+    for (const q of queue) { effX += q.dx; effY += q.dy; }
     if (manhattanDistance(effX, effY, x, y) === 1) {
+      const dx = x - effX;
+      const dy = y - effY;
       if (hero.currentAction.type === 'moving' || queue.length > 0) {
-        if (queue.length < 2) {
-          moveQueueRef.current.set(hero.id, [...queue, { toX: x, toY: y }]);
+        if (queue.length < 10) {
+          moveQueueRef.current.set(hero.id, [...queue, { dx, dy }]);
         }
       } else {
         enqueue({ type: 'move_unit', unitId: hero.id, toX: x, toY: y });
@@ -522,13 +523,27 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     for (const unit of newState.units) {
       const prevAction = prevUnitActionsRef.current.get(unit.id);
 
-      // Drain move queue when a unit finishes moving
-      if (prevAction?.type === 'moving' && unit.currentAction.type === 'idle' && unit.side === mySideRef.current) {
-        const queue = moveQueueRef.current.get(unit.id) ?? [];
-        if (queue.length > 0) {
+      // Drain move queue when a unit finishes moving or when a move was rejected (idle→idle)
+      if ((prevAction?.type === 'moving' || prevAction?.type === 'idle') && unit.currentAction.type === 'idle' && unit.side === mySideRef.current) {
+        let queue = moveQueueRef.current.get(unit.id) ?? [];
+        // Skip invalid queued moves until we find one that works or the queue is empty
+        while (queue.length > 0) {
           const [next, ...rest] = queue;
-          moveQueueRef.current.set(unit.id, rest);
-          enqueue({ type: 'move_unit', unitId: unit.id, toX: next.toX, toY: next.toY });
+          const toX = unit.x + next.dx;
+          const toY = unit.y + next.dy;
+          queue = rest;
+          // Validate: in bounds, not a wall, not occupied
+          if (toX >= 0 && toX < newState.gridWidth && toY >= 0 && toY < newState.gridHeight
+            && newState.tiles[toY][toX].type !== 'wall'
+            && !newState.units.some(u => u.alive && u.x === toX && u.y === toY)) {
+            moveQueueRef.current.set(unit.id, rest);
+            enqueue({ type: 'move_unit', unitId: unit.id, toX, toY });
+            break;
+          }
+        }
+        // If we exhausted the queue without finding a valid move, clear it
+        if (queue.length === 0) {
+          moveQueueRef.current.delete(unit.id);
         }
       }
 
@@ -639,8 +654,22 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const state = combatStateRef.current;
+      if (state.outcome !== 'ongoing') return;
+
+      // E key: cycle selected hero
+      if (e.key === 'e' || e.key === 'E') {
+        const aliveHeroes = state.units.filter(u => u.side === mySideRef.current && u.alive);
+        if (aliveHeroes.length <= 1) return;
+        const curIdx = aliveHeroes.findIndex(h => h.id === selectedHeroIdRef.current);
+        const nextIdx = (curIdx + 1) % aliveHeroes.length;
+        setSelectedHeroId(aliveHeroes[nextIdx].id);
+        selectedHeroIdRef.current = aliveHeroes[nextIdx].id;
+        e.preventDefault();
+        return;
+      }
+
       const heroId = selectedHeroIdRef.current;
-      if (!heroId || state.outcome !== 'ongoing') return;
+      if (!heroId) return;
       const hero = state.units.find(u => u.id === heroId && u.alive);
       if (!hero) return;
       let dx = 0, dy = 0;
@@ -663,13 +692,9 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       }
       // Queue if mid-move, otherwise send immediately
       const queue = moveQueueRef.current.get(hero.id) ?? [];
-      const effX = queue.length > 0 ? queue[queue.length - 1].toX
-        : hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
-      const effY = queue.length > 0 ? queue[queue.length - 1].toY
-        : hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
       if (hero.currentAction.type === 'moving' || queue.length > 0) {
-        if (queue.length < 2) {
-          moveQueueRef.current.set(hero.id, [...queue, { toX: effX + dx, toY: effY + dy }]);
+        if (queue.length < 10) {
+          moveQueueRef.current.set(hero.id, [...queue, { dx, dy }]);
         }
       } else {
         enqueue({ type: 'move_unit', unitId: hero.id, toX, toY });
@@ -878,7 +903,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       </div>
 
       <div style={styles.helpBar}>
-        Click hero to select · Click enemy to attack · Click spell then target tile · Click empty adjacent tile to move
+        Click 'e' to cycle hero.
       </div>
     </div>
   );
@@ -992,5 +1017,5 @@ const styles: Record<string, React.CSSProperties> = {
   spellBtn: { display: 'flex', flexDirection: 'column', width: 'auto', padding: '6px 8px', marginBottom: 3, borderRadius: 4, cursor: 'pointer', color: '#fff', textAlign: 'left', fontFamily: 'inherit' },
   log: { maxHeight: 150, overflowY: 'auto', fontSize: '10px', color: '#bbb' },
   logEntry: { padding: '1px 0', borderBottom: '1px solid #222' },
-  helpBar: { padding: '6px 16px', fontSize: '11px', color: '#666', backgroundColor: '#111', textAlign: 'center' },
+  helpBar: { padding: '10px 16px', fontSize: '14px', color: '#e0e0e0', backgroundColor: '#1a1a2e', textAlign: 'center' },
 };
