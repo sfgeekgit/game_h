@@ -19,6 +19,39 @@ const ANIM_REGISTRY: Record<string, AnimFn> = {
 
 // --- Pure helpers (outside component) ---
 
+/** BFS pathfind on the combat grid, avoiding walls. Returns directions or null if no path. */
+function bfsPath(
+  tiles: { type: string }[][],
+  gridW: number, gridH: number,
+  fromX: number, fromY: number,
+  toX: number, toY: number,
+): Array<{ dx: number; dy: number }> | null {
+  if (fromX === toX && fromY === toY) return [];
+  const key = (x: number, y: number) => `${x},${y}`;
+  const visited = new Set<string>();
+  visited.add(key(fromX, fromY));
+  const queue: Array<{ x: number; y: number; path: Array<{ dx: number; dy: number }> }> = [
+    { x: fromX, y: fromY, path: [] },
+  ];
+  const dirs = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    for (const d of dirs) {
+      const nx = cur.x + d.dx;
+      const ny = cur.y + d.dy;
+      if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
+      if (tiles[ny][nx].type === 'wall') continue;
+      const k = key(nx, ny);
+      if (visited.has(k)) continue;
+      visited.add(k);
+      const newPath = [...cur.path, d];
+      if (nx === toX && ny === toY) return newPath;
+      queue.push({ x: nx, y: ny, path: newPath });
+    }
+  }
+  return null;
+}
+
 function chargeColor(actionType: UnitAction['type']): number {
   if (actionType === 'charging_spell') return 0x9333ea;
   if (actionType === 'moving') return 0x2ecc71;
@@ -288,9 +321,11 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     ? (initialState?.units.find(u => u.side === mySide)?.id ?? null)
     : 'hero1';
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(defaultHero);
+  const [targetedEnemyId, setTargetedEnemyId] = useState<string | null>(null);
   const [pendingSpell, setPendingSpell] = useState<SpellDef | null>(null);
   const [paused, setPaused] = useState(!isNetworked);
 
+  const targetedEnemyIdRef = useRef<string | null>(null);
   const commandQueueRef = useRef<PlayerCommand[]>([]);
   const lastFrameRef = useRef<number>(0);
   const combatStateRef = useRef(combatState);
@@ -388,6 +423,8 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       return;
     }
     if (enemyOnTile) {
+      setTargetedEnemyId(enemyOnTile.id);
+      targetedEnemyIdRef.current = enemyOnTile.id;
       enqueue({ type: 'set_weapon_target', unitId: hero.id, targetId: enemyOnTile.id, autoAttack: hero.autoAttack });
       moveQueueRef.current.delete(hero.id);
       return;
@@ -397,20 +434,24 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       selectedHeroIdRef.current = friendlyOnTile.id;
       return;
     }
-    // Movement: use effective position (end of current move + queued moves) for adjacency check
+    // Movement: compute "other spot" (end of current move + queued moves)
     const queue = moveQueueRef.current.get(hero.id) ?? [];
     let effX = hero.currentAction.type === 'moving' ? hero.currentAction.toX : hero.x;
     let effY = hero.currentAction.type === 'moving' ? hero.currentAction.toY : hero.y;
     for (const q of queue) { effX += q.dx; effY += q.dy; }
-    if (manhattanDistance(effX, effY, x, y) === 1) {
-      const dx = x - effX;
-      const dy = y - effY;
-      if (hero.currentAction.type === 'moving' || queue.length > 0) {
-        if (queue.length < 10) {
-          moveQueueRef.current.set(hero.id, [...queue, { dx, dy }]);
-        }
-      } else {
-        enqueue({ type: 'move_unit', unitId: hero.id, toX: x, toY: y });
+    // Ignore clicks more than 4 tiles away (Chebyshev) from the other spot
+    if (Math.abs(x - effX) > 4 || Math.abs(y - effY) > 4) return;
+    // Pathfind from the other spot to the clicked tile
+    const path = bfsPath(state.tiles, state.gridWidth, state.gridHeight, effX, effY, x, y);
+    if (!path || path.length === 0) return;
+    if (hero.currentAction.type === 'moving' || queue.length > 0) {
+      moveQueueRef.current.set(hero.id, [...queue, ...path]);
+    } else {
+      // Send first step immediately, queue the rest
+      const [first, ...rest] = path;
+      enqueue({ type: 'move_unit', unitId: hero.id, toX: effX + first.dx, toY: effY + first.dy });
+      if (rest.length > 0) {
+        moveQueueRef.current.set(hero.id, rest);
       }
     }
   }, [enqueue]);
@@ -668,10 +709,69 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
         return;
       }
 
+      // Q key: cycle targeted enemy
+      if (e.key === 'q' || e.key === 'Q') {
+        const aliveEnemies = state.units.filter(u => u.side !== mySideRef.current && u.alive);
+        if (aliveEnemies.length === 0) return;
+        const curIdx = aliveEnemies.findIndex(e => e.id === targetedEnemyIdRef.current);
+        const nextIdx = (curIdx + 1) % aliveEnemies.length;
+        setTargetedEnemyId(aliveEnemies[nextIdx].id);
+        targetedEnemyIdRef.current = aliveEnemies[nextIdx].id;
+        e.preventDefault();
+        return;
+      }
+
       const heroId = selectedHeroIdRef.current;
       if (!heroId) return;
       const hero = state.units.find(u => u.id === heroId && u.alive);
       if (!hero) return;
+
+      // F key: attack targeted enemy (or cast pending spell on them)
+      if (e.key === 'f' || e.key === 'F') {
+        const targetId = targetedEnemyIdRef.current;
+        if (!targetId) return;
+        const target = state.units.find(u => u.id === targetId && u.alive);
+        if (!target) return;
+        const spell = pendingSpellRef.current;
+        if (spell) {
+          const dist = manhattanDistance(hero.x, hero.y, target.x, target.y);
+          if (dist <= spell.reach && hero.mana >= spell.manaCost) {
+            if (spell.targetType === 'unit') {
+              enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: target.x, targetY: target.y, targetUnitId: target.id });
+            } else {
+              enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: target.x, targetY: target.y });
+            }
+            moveQueueRef.current.delete(hero.id);
+          }
+          setPendingSpell(null);
+          pendingSpellRef.current = null;
+        } else {
+          enqueue({ type: 'set_weapon_target', unitId: hero.id, targetId: target.id, autoAttack: hero.autoAttack });
+          moveQueueRef.current.delete(hero.id);
+        }
+        e.preventDefault();
+        return;
+      }
+
+      // 1-9 keys: select spell by index
+      if (e.key >= '1' && e.key <= '9') {
+        const spellIdx = parseInt(e.key) - 1;
+        if (hero.spells.length > spellIdx) {
+          const spell = state.spellCatalog[hero.spells[spellIdx]];
+          if (spell && hero.mana >= spell.manaCost) {
+            if (pendingSpellRef.current?.id === spell.id) {
+              setPendingSpell(null);
+              pendingSpellRef.current = null;
+            } else {
+              setPendingSpell(spell);
+              pendingSpellRef.current = spell;
+            }
+          }
+        }
+        e.preventDefault();
+        return;
+      }
+
       let dx = 0, dy = 0;
       if (e.key === 'ArrowUp'    || e.key === 'w' || e.key === 'W') dy = -1;
       else if (e.key === 'ArrowDown'  || e.key === 's' || e.key === 'S') dy = 1;
@@ -821,7 +921,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
                 <span style={{ fontSize: '10px', color: '#888' }}>Mana: {selectedHero.mana}/{selectedHero.maxMana}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {selectedHero.spells.map(spellId => {
+                {selectedHero.spells.map((spellId, idx) => {
                   const spell = combatState.spellCatalog[spellId];
                   if (!spell) return null;
                   const canCast = selectedHero.alive && selectedHero.mana >= spell.manaCost;
@@ -838,7 +938,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
                         border: isActive ? '2px solid #f1c40f' : '2px solid transparent',
                       }}
                     >
-                      <span style={{ fontWeight: 'bold' }}>{spell.name}</span>
+                      <span style={{ fontWeight: 'bold' }}><span style={{ color: '#f1c40f', marginRight: 4 }}>{idx + 1}</span>{spell.name}</span>
                       <span style={{ fontSize: '10px', color: '#ccc' }}>
                         {spell.damage < 0 ? `Heal ${-spell.damage}` : `${spell.damage} dmg`}
                         {spell.aoeRadius > 0 ? ` AoE:${spell.aoeRadius}` : ''}
@@ -877,9 +977,12 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
               <EnemyCard
                 key={enemy.id}
                 enemy={enemy}
+                isTargeted={enemy.id === targetedEnemyId}
                 smoothBars={isNetworked}
                 onClick={() => {
                   if (selectedHero?.alive && enemy.alive) {
+                    setTargetedEnemyId(enemy.id);
+                    targetedEnemyIdRef.current = enemy.id;
                     if (pendingSpell) {
                       handleTileClick(enemy.x, enemy.y);
                     } else {
@@ -903,7 +1006,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       </div>
 
       <div style={styles.helpBar}>
-        Click 'e' to cycle hero.
+        E: cycle hero · Q: cycle enemy · F: attack/cast on target · 1-9: select spell · WASD/Arrows: move
       </div>
     </div>
   );
@@ -970,10 +1073,10 @@ function HeroCard({ hero, isSelected, onSelect, onToggleAuto, onCancel, smoothBa
   );
 }
 
-function EnemyCard({ enemy, onClick, smoothBars }: { enemy: UnitDef; onClick: () => void; smoothBars?: boolean }) {
+function EnemyCard({ enemy, onClick, smoothBars, isTargeted }: { enemy: UnitDef; onClick: () => void; smoothBars?: boolean; isTargeted?: boolean }) {
   const barTransition = smoothBars ? { transition: 'width 0.45s linear' } : {};
   return (
-    <div onClick={onClick} style={{ ...styles.unitCard, opacity: enemy.alive ? 1 : 0.3, cursor: enemy.alive ? 'pointer' : 'default' }}>
+    <div onClick={onClick} style={{ ...styles.unitCard, opacity: enemy.alive ? 1 : 0.3, cursor: enemy.alive ? 'pointer' : 'default', borderColor: isTargeted ? '#f39c12' : 'transparent' }}>
       <div style={styles.unitCardHeader}>
         <span style={{ fontWeight: 'bold', fontSize: '12px' }}>{enemy.name}</span>
         <span style={{ fontSize: '10px', color: '#aaa' }}>({enemy.x},{enemy.y})</span>
