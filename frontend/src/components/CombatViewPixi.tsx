@@ -137,7 +137,12 @@ function visualCenter(unit: UnitDef, ts: number): { cx: number; cy: number } {
 }
 
 // Draws targeting lines and movement arrows between units
-function updateOverlays(g: Graphics, state: CombatState, ts: number): void {
+function updateOverlays(
+  g: Graphics, state: CombatState, ts: number,
+  spellTarget?: { x: number; y: number } | null,
+  heroId?: string | null,
+  pendingSpell?: SpellDef | null,
+): void {
   g.clear();
   for (const unit of state.units) {
     if (!unit.alive) continue;
@@ -169,6 +174,36 @@ function updateOverlays(g: Graphics, state: CombatState, ts: number): void {
         for (let gy = 0; gy < state.gridHeight; gy++) {
           for (let gx = 0; gx < state.gridWidth; gx++) {
             if (manhattanDistance(tileX, tileY, gx, gy) > spell.aoeRadius) continue;
+            if (!inRange(gx, gy - 1)) { g.moveTo(gx * ts, gy * ts).lineTo((gx + 1) * ts, gy * ts).stroke(aoeStroke); }
+            if (!inRange(gx, gy + 1)) { g.moveTo(gx * ts, (gy + 1) * ts).lineTo((gx + 1) * ts, (gy + 1) * ts).stroke(aoeStroke); }
+            if (!inRange(gx - 1, gy)) { g.moveTo(gx * ts, gy * ts).lineTo(gx * ts, (gy + 1) * ts).stroke(aoeStroke); }
+            if (!inRange(gx + 1, gy)) { g.moveTo((gx + 1) * ts, gy * ts).lineTo((gx + 1) * ts, (gy + 1) * ts).stroke(aoeStroke); }
+          }
+        }
+      }
+    }
+  }
+
+  // Draw spell/attack targeting line from hero to keyboard-selected target
+  if (spellTarget && heroId) {
+    const hero = state.units.find(u => u.id === heroId && u.alive);
+    if (hero) {
+      const { cx, cy } = visualCenter(hero, ts);
+      const tx = spellTarget.x * ts + ts / 2;
+      const ty = spellTarget.y * ts + ts / 2;
+      const color = pendingSpell ? 0x9333ea : 0xf39c12;
+      g.moveTo(cx, cy).lineTo(tx, ty).stroke({ color, width: 2, alpha: 0.9 });
+      // Draw crosshair on target tile
+      g.rect(spellTarget.x * ts + 2, spellTarget.y * ts + 2, ts - 4, ts - 4).stroke({ color, width: 2, alpha: 0.8 });
+      // Draw AoE preview for tile-targeted spells
+      if (pendingSpell && pendingSpell.aoeRadius > 0) {
+        const aoeStroke = { color: 0x9333ea, width: 2.5, alpha: 0.9 };
+        const inRange = (nx: number, ny: number) =>
+          nx >= 0 && nx < state.gridWidth && ny >= 0 && ny < state.gridHeight &&
+          manhattanDistance(spellTarget.x, spellTarget.y, nx, ny) <= pendingSpell.aoeRadius;
+        for (let gy = 0; gy < state.gridHeight; gy++) {
+          for (let gx = 0; gx < state.gridWidth; gx++) {
+            if (manhattanDistance(spellTarget.x, spellTarget.y, gx, gy) > pendingSpell.aoeRadius) continue;
             if (!inRange(gx, gy - 1)) { g.moveTo(gx * ts, gy * ts).lineTo((gx + 1) * ts, gy * ts).stroke(aoeStroke); }
             if (!inRange(gx, gy + 1)) { g.moveTo(gx * ts, (gy + 1) * ts).lineTo((gx + 1) * ts, (gy + 1) * ts).stroke(aoeStroke); }
             if (!inRange(gx - 1, gy)) { g.moveTo(gx * ts, gy * ts).lineTo(gx * ts, (gy + 1) * ts).stroke(aoeStroke); }
@@ -326,6 +361,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
   const [paused, setPaused] = useState(!isNetworked);
 
   const targetedEnemyIdRef = useRef<string | null>(null);
+  const spellTargetRef = useRef<{ x: number; y: number } | null>(null);
   const commandQueueRef = useRef<PlayerCommand[]>([]);
   const lastFrameRef = useRef<number>(0);
   const combatStateRef = useRef(combatState);
@@ -381,7 +417,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     if (!pixiAppRef.current) return;
     const ts = tileSizeRef.current;
     updateHighlights(highlightLayerRef.current!, state, pendingSpellRef.current, selectedHeroIdRef.current, ts);
-    updateOverlays(overlayLayerRef.current!, state, ts);
+    updateOverlays(overlayLayerRef.current!, state, ts, spellTargetRef.current, selectedHeroIdRef.current, pendingSpellRef.current);
     for (const unit of state.units) {
       const objs = unitObjectsRef.current.get(unit.id);
       if (objs) updateUnitPixiObjects(objs, unit, unit.id === selectedHeroIdRef.current, mySideRef.current, ts);
@@ -420,6 +456,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       }
       setPendingSpell(null);
       pendingSpellRef.current = null;
+      spellTargetRef.current = null;
       return;
     }
     if (enemyOnTile) {
@@ -709,14 +746,18 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
         return;
       }
 
-      // Q key: cycle targeted enemy
+      // Q key: cycle targeted enemy (also sets spell target position)
       if (e.key === 'q' || e.key === 'Q') {
         const aliveEnemies = state.units.filter(u => u.side !== mySideRef.current && u.alive);
         if (aliveEnemies.length === 0) return;
-        const curIdx = aliveEnemies.findIndex(e => e.id === targetedEnemyIdRef.current);
+        const curIdx = aliveEnemies.findIndex(en => en.id === targetedEnemyIdRef.current);
         const nextIdx = (curIdx + 1) % aliveEnemies.length;
-        setTargetedEnemyId(aliveEnemies[nextIdx].id);
-        targetedEnemyIdRef.current = aliveEnemies[nextIdx].id;
+        const nextEnemy = aliveEnemies[nextIdx];
+        setTargetedEnemyId(nextEnemy.id);
+        targetedEnemyIdRef.current = nextEnemy.id;
+        // Set spell target to this enemy's tile
+        spellTargetRef.current = { x: nextEnemy.x, y: nextEnemy.y };
+        renderDirtyRef.current = true;
         e.preventDefault();
         return;
       }
@@ -726,26 +767,44 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       const hero = state.units.find(u => u.id === heroId && u.alive);
       if (!hero) return;
 
-      // F key: attack targeted enemy (or cast pending spell on them)
+      // Escape key: cancel spell targeting
+      if (e.key === 'Escape' && pendingSpellRef.current) {
+        setPendingSpell(null);
+        pendingSpellRef.current = null;
+        spellTargetRef.current = null;
+        renderDirtyRef.current = true;
+        e.preventDefault();
+        return;
+      }
+
+      // F key: attack targeted enemy or cast spell at target position
       if (e.key === 'f' || e.key === 'F') {
-        const targetId = targetedEnemyIdRef.current;
-        if (!targetId) return;
-        const target = state.units.find(u => u.id === targetId && u.alive);
-        if (!target) return;
         const spell = pendingSpellRef.current;
         if (spell) {
+          const target = spellTargetRef.current;
+          if (!target) return;
           const dist = manhattanDistance(hero.x, hero.y, target.x, target.y);
           if (dist <= spell.reach && hero.mana >= spell.manaCost) {
             if (spell.targetType === 'unit') {
-              enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: target.x, targetY: target.y, targetUnitId: target.id });
+              const unitOnTile = state.units.find(u => u.alive && u.x === target.x && u.y === target.y);
+              if (unitOnTile) {
+                enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: target.x, targetY: target.y, targetUnitId: unitOnTile.id });
+                moveQueueRef.current.delete(hero.id);
+              }
             } else {
               enqueue({ type: 'cast_spell', unitId: hero.id, spellId: spell.id, targetX: target.x, targetY: target.y });
+              moveQueueRef.current.delete(hero.id);
             }
-            moveQueueRef.current.delete(hero.id);
           }
           setPendingSpell(null);
           pendingSpellRef.current = null;
+          spellTargetRef.current = null;
+          renderDirtyRef.current = true;
         } else {
+          const targetId = targetedEnemyIdRef.current;
+          if (!targetId) return;
+          const target = state.units.find(u => u.id === targetId && u.alive);
+          if (!target) return;
           enqueue({ type: 'set_weapon_target', unitId: hero.id, targetId: target.id, autoAttack: hero.autoAttack });
           moveQueueRef.current.delete(hero.id);
         }
@@ -760,12 +819,26 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
           const spell = state.spellCatalog[hero.spells[spellIdx]];
           if (spell && hero.mana >= spell.manaCost) {
             if (pendingSpellRef.current?.id === spell.id) {
+              // Toggle off
               setPendingSpell(null);
               pendingSpellRef.current = null;
+              spellTargetRef.current = null;
             } else {
               setPendingSpell(spell);
               pendingSpellRef.current = spell;
+              // Initialize target to current targeted enemy's tile, or first enemy
+              const targetEnemy = targetedEnemyIdRef.current
+                ? state.units.find(u => u.id === targetedEnemyIdRef.current && u.alive)
+                : null;
+              const fallbackEnemy = state.units.find(u => u.side !== mySideRef.current && u.alive);
+              const initTarget = targetEnemy ?? fallbackEnemy;
+              if (initTarget) {
+                spellTargetRef.current = { x: initTarget.x, y: initTarget.y };
+                setTargetedEnemyId(initTarget.id);
+                targetedEnemyIdRef.current = initTarget.id;
+              }
             }
+            renderDirtyRef.current = true;
           }
         }
         e.preventDefault();
@@ -779,6 +852,20 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
       else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') dx = 1;
       else return;
       e.preventDefault();
+
+      // In spell targeting mode for tile spells: WASD/arrows move the target cursor
+      if (pendingSpellRef.current && pendingSpellRef.current.targetType !== 'unit') {
+        const cur = spellTargetRef.current;
+        if (!cur) return;
+        const nx = cur.x + dx;
+        const ny = cur.y + dy;
+        if (nx >= 0 && nx < state.gridWidth && ny >= 0 && ny < state.gridHeight) {
+          spellTargetRef.current = { x: nx, y: ny };
+          renderDirtyRef.current = true;
+        }
+        return;
+      }
+
       // If hero is idle and target tile has an enemy, treat as attack
       const toX = hero.x + dx;
       const toY = hero.y + dy;
@@ -822,6 +909,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     if (pendingSpellRef.current?.id === spell.id) {
       setPendingSpell(null);
       pendingSpellRef.current = null;
+      spellTargetRef.current = null;
       return;
     }
     if (selectedHero.mana < spell.manaCost) return;
@@ -836,6 +924,7 @@ export function CombatViewPixi({ onExit, mode = 'local', sessionId, side, initia
     selectedHeroIdRef.current = heroId;
     setPendingSpell(null);
     pendingSpellRef.current = null;
+    spellTargetRef.current = null;
     lastFrameRef.current = 0;
     activeEffectsRef.current = [];
     moveQueueRef.current.clear();
