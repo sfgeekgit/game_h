@@ -64,32 +64,42 @@ export async function initializeDatabase(): Promise<void> {
       (10, 'Dungeon Entrance',   'fixed', 'dungeon_entrance')
   `);
 
-  // Seed all NPCs if not present
+  // Combat catalog tables — structure only, no seed data.
+  // wep_types, spell_types, and npcs are DB-owned catalog data populated via
+  // mariadb-dump from an existing game instance. See docs/MIGRATION_INSTRUCTIONS.md.
   await query(`
-    INSERT IGNORE INTO npcs (npc_id, npc_file, image) VALUES
-      (142857, 'acolyte',          'NPC01.png'),
-      (293847, 'adventurer_ghost', 'NPC132A.png'),
-      (384756, 'bard',             'NPC321.png'),
-      (475869, 'blacksmith',       NULL),
-      (516273, 'dockmaster',       'NPC_25o.png'),
-      (627384, 'drunk_merchant',   'NPC_asdf.png'),
-      (738495, 'dungeon_keeper',   'NPC_ooiop.png'),
-      (849516, 'elder',            'NPCada.png'),
-      (951627, 'fisherman',        'NPCat32a.png'),
-      (162738, 'fishmonger',       'npc1.png'),
-      (273849, 'ghost',            'npc2.png'),
-      (384951, 'gravedigger',      'npc3.png'),
-      (495162, 'guard',            'npc4.png'),
-      (516384, 'hedge_wizard',     'NPC01.png'),
-      (627495, 'herbalist',        'NPC132A.png'),
-      (738516, 'innkeeper',        'NPC321.png'),
-      (849627, 'merchant',         'NPC32f1.png'),
-      (951738, 'minstrel',         'NPC_25o.png'),
-      (162849, 'pilgrim',          'NPC_asdf.png'),
-      (273951, 'priest',           'NPC_ooiop.png'),
-      (384162, 'ranger',           'NPCada.png'),
-      (495273, 'sailor',           'NPCat32a.png'),
-      (516495, 'squire',           'npc1.png'),
-      (627516, 'stranger',         'npc2.png')
+    CREATE TABLE IF NOT EXISTS wep_types (
+      id             BIGINT NOT NULL,
+      \`key\`        VARCHAR(32) NOT NULL,
+      name           VARCHAR(64) NOT NULL,
+      damage         INT DEFAULT 0,
+      cast_time      DECIMAL(4,1) DEFAULT 0.0,
+      reach          INT NOT NULL DEFAULT 1,
+      anim           VARCHAR(32) NOT NULL DEFAULT '',
+      anim_ms        INT NOT NULL DEFAULT 400,
+      anim_particles INT NOT NULL DEFAULT 8,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_wep_key (\`key\`)
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS spell_types (
+      id             BIGINT NOT NULL,
+      \`key\`        VARCHAR(32) NOT NULL,
+      name           VARCHAR(64) NOT NULL,
+      damage         INT DEFAULT 0,
+      mana_cost      INT DEFAULT 0,
+      cast_time      DECIMAL(4,1) DEFAULT 0.0,
+      reach          INT DEFAULT 0,
+      aoe_radius     INT DEFAULT 0,
+      aoe_shape      VARCHAR(16) DEFAULT NULL,
+      target_type    VARCHAR(16) DEFAULT 'tile',
+      anim           VARCHAR(32) NOT NULL DEFAULT '',
+      anim_ms        INT NOT NULL DEFAULT 400,
+      anim_particles INT NOT NULL DEFAULT 8,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_spell_key (\`key\`)
+    )
   `);
 }

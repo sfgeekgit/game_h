@@ -212,6 +212,23 @@ cd /home/NEW_GAME/backend
 npm start  # Will auto-create tables via schema.ts
 ```
 
+**Copy catalog tables from OLD_GAME:**
+```bash
+sudo mariadb-dump -u root OLD_GAME npcs wep_types spell_types | sudo mariadb -u root NEW_GAME
+```
+
+These three tables are DB-owned catalog data — NPC portrait assignments, weapon stats, and spell
+stats. `schema.ts` creates the table structures but leaves them empty. They must be populated by
+dumping from the source game. If migrating to a fresh game with no source to dump from, insert
+rows manually or via the npc_admin tool.
+
+**Note:** If the new game's DB already has rows in these tables (e.g. from a partial migration),
+truncate first to avoid conflicts:
+```bash
+sudo mariadb -u root -e "TRUNCATE TABLE NEW_GAME.npcs; TRUNCATE TABLE NEW_GAME.wep_types; TRUNCATE TABLE NEW_GAME.spell_types;"
+sudo mariadb-dump -u root OLD_GAME npcs wep_types spell_types | sudo mariadb -u root NEW_GAME
+```
+
 ---
 
 ## Step 6: Update SERVER.md
@@ -279,6 +296,7 @@ After migration:
 - [ ] All "OLD_GAME" references changed to "NEW_GAME" in new directory
 - [ ] All "Old Game" references changed to "New Game" in new directory
 - [ ] Database `NEW_GAME` created with schema
+- [ ] Catalog tables (`npcs`, `wep_types`, `spell_types`) populated from OLD_GAME dump
 - [ ] `.env` file exists with correct secrets
 - [ ] systemd service `NEW_GAME` running
 - [ ] Caddy config updated (only NEW_GAME block added)

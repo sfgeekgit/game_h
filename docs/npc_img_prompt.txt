@@ -1,0 +1,2 @@
+Please draw me an image. This will be for an attractive male NPC in a video game.
+DOS-era VGA pixel art NPC portrait, medieval villager, shoulders-up, centered, plain light background with NO border/frame, image fills the canvas. Drawn on a 64x64 base sprite grid then scaled up to 128x128 with nearest-neighbor. Chunky pixels but mid-level detail, no anti-aliasing, no painterly rendering, limited 32–48 color palette, dithering only for shadows, flat 2–4 tone shading per region, clean 1 px dark outline, simple readable shapes
