@@ -30,8 +30,9 @@ Fix any found before copying forward (they'll propagate to the new game).
 ## Step 1: Copy Files
 
 ```bash
-# Create target directory
-mkdir -p /home/NEW_GAME
+# Create target directory (needs sudo, then fix ownership)
+sudo mkdir -p /home/NEW_GAME
+sudo chown cc:cc /home/NEW_GAME
 
 # Copy everything except git and build artifacts
 rsync -av \
@@ -46,12 +47,27 @@ rsync -av \
 cp /home/OLD_GAME/.gitignore /home/NEW_GAME/
 ```
 
+**CRITICAL: Verify `.gitignore` was actually copied before continuing:**
+```bash
+ls -la /home/NEW_GAME/.gitignore
+cat /home/NEW_GAME/.gitignore  # should list .env, .db_credentials, node_modules, etc.
+```
+
+If it's missing, copy it manually. **Do not run `git init` until `.gitignore` is confirmed present.**
+Committing without it will put secrets and large files into the repo.
+
+**Also copy NPC portrait images** (these are gitignored and not in the repo):
+```bash
+rsync -av /home/OLD_GAME/frontend/public/npcs/ /home/NEW_GAME/frontend/public/npcs/
+```
+
 **What gets copied:**
 - ✅ All source code (backend, frontend, shared)
 - ✅ Config files (package.json, tsconfig, eslint, prettier, vitest)
 - ✅ Documentation (SERVER.md, DEVELOPMENT.md, specs, this file)
 - ✅ .gitignore (for future git init if needed)
 - ✅ .db_credentials (will need updating)
+- ✅ NPC images (copied separately above — gitignored, not in repo)
 - ❌ .git directory (explicitly excluded)
 - ❌ node_modules (will run npm install fresh)
 - ❌ dist (will rebuild)
@@ -94,6 +110,7 @@ grep -r 'OLD_PORT' . --exclude-dir=node_modules --exclude-dir=.git --include='*.
 - `package.json` - "name" field
 - `.db_credentials` - (will be replaced with new password)
 - `SERVER.md` - **Complete rewrite** (see Step 6)
+- `CLAUDE.md` - Tracked in git, so it forks along with the code. Contains the source repo's dev DB password, dev systemd service names, and dev ports. Update **before** agents read it — a wrong DB password here leads to backend startup failures that look mysterious until you trace them back.
 
 ---
 
@@ -134,14 +151,21 @@ grep -r 'OLD_PORT' . --exclude-dir=node_modules --exclude-dir=.git --include='*.
 
 **CRITICAL:** Do NOT modify any other site configurations. Only add new game block.
 
-**Reload Caddy:**
+**Validate and reload Caddy:**
 ```bash
+sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
 ---
 
 ## Step 4: Create systemd Service
+
+**Generate secrets first:**
+```bash
+openssl rand -base64 48   # SESSION_SECRET
+openssl rand -base64 32   # DB_PASSWORD (use this in Step 5 too)
+```
 
 **Create `/etc/systemd/system/NEW_GAME.service`:**
 
@@ -156,7 +180,11 @@ User=cc
 WorkingDirectory=/home/NEW_GAME
 Environment="NODE_ENV=production"
 Environment="PORT=NEW_PORT"
-EnvironmentFile=/home/NEW_GAME/.env
+Environment="SESSION_SECRET=GENERATED_SECRET"
+Environment="DB_PASSWORD=GENERATED_PASSWORD"
+Environment="DB_USER=NEW_GAME"
+Environment="DB_NAME=NEW_GAME"
+Environment="CORS_ORIGIN=https://documentbrain.com"
 ExecStart=/usr/bin/node --import tsx /home/NEW_GAME/backend/src/server.ts
 Restart=on-failure
 RestartSec=5s
@@ -165,56 +193,44 @@ RestartSec=5s
 WantedBy=multi-user.target
 ```
 
-**Note:** The service runs TypeScript directly via tsx (not compiled JavaScript), so the backend build step is optional. However, building helps verify the code compiles without errors.
+**Note:** Secrets go directly in the service file (owned by root, never in git) — not in a `.env`
+file. This matches the pattern used by all other game instances on this server.
 
-**Enable and start:**
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable NEW_GAME
-sudo systemctl start NEW_GAME
-```
+**Note:** The service runs TypeScript directly via tsx (not compiled JavaScript), so the backend
+build step is optional. However, building helps verify the code compiles without errors.
 
 ---
 
 ## Step 5: Database Setup
 
-**Create database and user:**
-```sql
-CREATE DATABASE NEW_GAME;
-CREATE USER 'NEW_GAME'@'localhost' IDENTIFIED BY 'GENERATE_STRONG_PASSWORD';
-GRANT ALL PRIVILEGES ON NEW_GAME.* TO 'NEW_GAME'@'localhost';
-FLUSH PRIVILEGES;
+**Create database and user** (use the same DB_PASSWORD generated in Step 4):
+```bash
+sudo mariadb -u root -e "
+  CREATE DATABASE NEW_GAME;
+  CREATE USER 'NEW_GAME'@'localhost' IDENTIFIED BY 'GENERATED_PASSWORD';
+  GRANT ALL PRIVILEGES ON NEW_GAME.* TO 'NEW_GAME'@'localhost';
+  FLUSH PRIVILEGES;
+"
 ```
 
-**Store credentials:**
+**Store DB password for reference** (the service reads it from the systemd unit, but keep a copy):
 ```bash
 echo 'GENERATED_PASSWORD' > /home/NEW_GAME/.db_credentials
 chmod 600 /home/NEW_GAME/.db_credentials
 ```
 
-**Create .env file:**
+**Enable and start service** (this runs `initializeDatabase()` which creates all table structures):
 ```bash
-cat > /home/NEW_GAME/.env << EOF
-SESSION_SECRET=GENERATE_STRONG_SECRET
-DB_PASSWORD=$(cat /home/NEW_GAME/.db_credentials)
-DB_USER=NEW_GAME
-DB_NAME=NEW_GAME
-PORT=NEW_PORT
-NODE_ENV=production
-CORS_ORIGIN=https://documentbrain.com
-EOF
-chmod 600 /home/NEW_GAME/.env
+sudo systemctl daemon-reload
+sudo systemctl enable NEW_GAME
+sudo systemctl start NEW_GAME
+sudo systemctl status NEW_GAME  # verify it started cleanly
 ```
 
-**Initialize schema:**
-```bash
-cd /home/NEW_GAME/backend
-npm start  # Will auto-create tables via schema.ts
-```
-
-**Copy catalog tables from OLD_GAME:**
+**Copy catalog tables from OLD_GAME** (AFTER the service has started and created table structures):
 ```bash
 sudo mariadb-dump -u root OLD_GAME npcs wep_types spell_types | sudo mariadb -u root NEW_GAME
+sudo systemctl restart NEW_GAME  # reload catalog into memory
 ```
 
 These three tables are DB-owned catalog data — NPC portrait assignments, weapon stats, and spell
@@ -227,6 +243,7 @@ truncate first to avoid conflicts:
 ```bash
 sudo mariadb -u root -e "TRUNCATE TABLE NEW_GAME.npcs; TRUNCATE TABLE NEW_GAME.wep_types; TRUNCATE TABLE NEW_GAME.spell_types;"
 sudo mariadb-dump -u root OLD_GAME npcs wep_types spell_types | sudo mariadb -u root NEW_GAME
+sudo systemctl restart NEW_GAME
 ```
 
 ---
@@ -255,13 +272,11 @@ sudo mariadb-dump -u root OLD_GAME npcs wep_types spell_types | sudo mariadb -u 
 npm install
 
 # Build frontend (required - serves static files)
-cd frontend
-npm run build
+VITE_BASE=/NEW_GAME/ npm run build -w frontend
 
 # Build backend (optional - service runs TypeScript via tsx)
 # Useful to verify code compiles without errors
-cd ../backend
-npm run build
+npm run build -w backend
 
 # Verify service is running
 sudo systemctl status NEW_GAME
@@ -270,6 +285,26 @@ sudo systemctl status NEW_GAME
 **Test:**
 - `https://documentbrain.com/NEW_GAME/` - Should serve frontend
 - `https://documentbrain.com/NEW_GAME/api/health` - Should return backend health status
+
+---
+
+## Step 8: Git Setup
+
+**If running git commands as root on a directory owned by `cc`, add the safe directory exception first:**
+```bash
+git config --global --add safe.directory /home/NEW_GAME
+```
+
+**Initialize repo and push:**
+```bash
+cd /home/NEW_GAME
+git init
+git branch -m main          # default branch is 'master' — rename to 'main'
+git add .
+git commit -m "Initial commit: NEW_GAME forked from OLD_GAME"
+git remote add origin git@github.com:sfgeekgit/NEW_GAME.git
+git push -u origin main     # -u sets upstream so future 'git push' needs no arguments
+```
 
 ---
 
@@ -282,6 +317,7 @@ Check `/etc/caddy/Caddyfile` and `/etc/systemd/system/` for existing ports.
 - game_h → 3002
 - game_i → 3003
 - game_j → 3004
+- game_kastle → 3006
 - (etc.)
 
 ---
@@ -291,16 +327,16 @@ Check `/etc/caddy/Caddyfile` and `/etc/systemd/system/` for existing ports.
 After migration:
 
 - [ ] `/home/NEW_GAME/` directory exists with all files
-- [ ] No `.git` directory in NEW_GAME
-- [ ] `.gitignore` copied to NEW_GAME
+- [ ] No `.git` directory in NEW_GAME (until Step 8)
+- [ ] `.gitignore` present and verified — contains `.env`, `.db_credentials`, `node_modules`, etc.
+- [ ] NPC portrait images copied to `frontend/public/npcs/`
 - [ ] All "OLD_GAME" references changed to "NEW_GAME" in new directory
 - [ ] All "Old Game" references changed to "New Game" in new directory
 - [ ] Database `NEW_GAME` created with schema
 - [ ] Catalog tables (`npcs`, `wep_types`, `spell_types`) populated from OLD_GAME dump
-- [ ] `.env` file exists with correct secrets
-- [ ] systemd service `NEW_GAME` running
+- [ ] systemd service `NEW_GAME` running (secrets in unit file, not `.env`)
 - [ ] Caddy config updated (only NEW_GAME block added)
-- [ ] Caddy reloaded successfully
+- [ ] Caddy validated and reloaded successfully
 - [ ] https://documentbrain.com/NEW_GAME/ loads
 - [ ] API endpoints work
 - [ ] Registration/login works
@@ -317,12 +353,17 @@ Based on past migrations:
 1. ❌ Missing manifest.json name updates
 2. ❌ Missing short_name updates
 3. ❌ Missing HTML title updates
-4. ❌ Not rebuilding frontend after changes
+4. ❌ Not rebuilding frontend after changes (or missing `VITE_BASE=/NEW_GAME/` when building)
 5. ❌ Forgetting to update cookie name (breaks sessions)
 6. ❌ Wrong port in server.ts default
 7. ❌ Wrong port in vite.config.ts proxy target (not caught by name grep — must check manually)
 8. ❌ Not updating SERVER.md completely
 9. ❌ Declaring done without comprehensive grep check
+10. ❌ Missing `.gitignore` before `git init` — secrets and large files end up committed
+11. ❌ Starting service before catalog dump — server crashes on missing wep_types/spell_types rows
+12. ❌ Not copying NPC portrait images (gitignored, must be rsync'd separately)
+13. ❌ Forgetting `git branch -m main` — repo starts on `master` not `main`
+14. ❌ Using `.env` file for secrets — use hardcoded `Environment=` lines in the systemd unit file
 
 **Solution:** Use grep extensively. Search for every variation of the old game name.
 
