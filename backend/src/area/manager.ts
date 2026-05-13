@@ -1,49 +1,22 @@
-/**
- * Area manager — knows how to load a map definition and get or create
- * the persistent backend area instance for a given area_def.
- */
-import {
-  townSquare,
-  tavern,
-  marketplace,
-  forestPath,
-  castleGates,
-  docks,
-  herbalistGarden,
-  graveyard,
-  temple,
-  dungeonEntrance,
-} from '@game_h/shared';
+import { ROOM_REGISTRY } from './registry.js';
 import type { MapDef, AreaState, Entity } from '@game_h/shared';
-import { getPersistentArea, createArea, getNpcImages } from '../db/helpers.js';
+import { getPersistentArea, createArea, getNpcImages, getAreaDefByMapId } from '../db/helpers.js';
 import { isAreaLoaded, loadArea } from './store.js';
 
-const MAP_REGISTRY: Record<string, MapDef> = {
-  town_square: townSquare,
-  tavern,
-  marketplace,
-  forest_path: forestPath,
-  castle_gates: castleGates,
-  docks,
-  herbalist_garden: herbalistGarden,
-  graveyard,
-  temple,
-  dungeon_entrance: dungeonEntrance,
-};
+// Safe to cache indefinitely — area_defs rows are immutable at runtime.
+const areaDefIdCache = new Map<string, number>();
+const areaIdCache = new Map<string, number>();
+// Serializes concurrent first-joins for the same room to prevent duplicate DB rows.
+const roomCreating = new Map<string, Promise<number>>();
 
-/** Maps each map_id to its area_def_id in the database. */
-export const MAP_AREA_DEF_IDS: Record<string, number> = {
-  town_square: 1,
-  tavern: 2,
-  marketplace: 3,
-  forest_path: 4,
-  castle_gates: 5,
-  docks: 6,
-  herbalist_garden: 7,
-  graveyard: 8,
-  temple: 9,
-  dungeon_entrance: 10,
-};
+async function resolveAreaDefId(mapId: string): Promise<number> {
+  const cached = areaDefIdCache.get(mapId);
+  if (cached !== undefined) return cached;
+  const row = await getAreaDefByMapId(mapId);
+  if (!row) throw new Error(`No area_def found for map: ${mapId}`);
+  areaDefIdCache.set(mapId, row.area_def_id);
+  return row.area_def_id;
+}
 
 function mapDefToAreaState(map: MapDef): AreaState {
   const npcEntities: Entity[] = (map.npcs ?? []).map((npc) => ({
@@ -65,50 +38,55 @@ function mapDefToAreaState(map: MapDef): AreaState {
   };
 }
 
-/**
- * Get the map definition for a given map_id.
- * Throws if the map_id is not registered.
- */
-export function getMapDef(mapId: string): MapDef {
-  const map = MAP_REGISTRY[mapId];
-  if (!map) throw new Error(`Unknown map: ${mapId}`);
-  return map;
+export async function enrichWithImages(room: MapDef): Promise<MapDef> {
+  const npcFiles = (room.npcs ?? []).map((npc) => npc.dialogueFile);
+  const imageMap = await getNpcImages(npcFiles);
+  return {
+    ...room,
+    npcs: (room.npcs ?? []).map((npc) => ({ ...npc, image: imageMap[npc.dialogueFile] })),
+  };
 }
 
-/**
- * Get or create the single persistent area instance for the given area_def_id.
- * Loads the area into memory if not already loaded.
- * Returns the area_id.
- */
-export async function getOrCreatePersistentArea(
-  areaDefId: number,
-  mapId: string,
-): Promise<number> {
-  let areaRow = await getPersistentArea(areaDefId);
-  if (!areaRow) {
-    const newId = await createArea(areaDefId);
-    areaRow = await getPersistentArea(areaDefId);
-    if (!areaRow) throw new Error(`Failed to create area for area_def ${areaDefId}`);
-    void newId;
-  }
+export function getRoomDef(mapId: string): MapDef {
+  const room = ROOM_REGISTRY[mapId];
+  if (!room) throw new Error(`Unknown room: ${mapId}`);
+  return room;
+}
 
-  const areaId = areaRow.area_id;
+export function getOrCreateRoom(mapId: string): Promise<number> {
+  const cachedId = areaIdCache.get(mapId);
+  if (cachedId !== undefined && isAreaLoaded(cachedId)) return Promise.resolve(cachedId);
+
+  const inflight = roomCreating.get(mapId);
+  if (inflight) return inflight;
+
+  const promise = _loadRoom(mapId).finally(() => roomCreating.delete(mapId));
+  roomCreating.set(mapId, promise);
+  return promise;
+}
+
+async function _loadRoom(mapId: string): Promise<number> {
+  const areaDefId = await resolveAreaDefId(mapId);
+  const areaRow = await getPersistentArea(areaDefId);
+  const areaId = areaRow ? areaRow.area_id : await createArea(areaDefId);
+  areaIdCache.set(mapId, areaId);
 
   if (!isAreaLoaded(areaId)) {
-    const map = getMapDef(mapId);
-    const npcFiles = (map.npcs ?? []).map((npc) => npc.dialogueFile);
-    const imageMap = await getNpcImages(npcFiles);
-    const enrichedMap = {
-      ...map,
-      npcs: (map.npcs ?? []).map((npc) => ({ ...npc, image: imageMap[npc.dialogueFile] })),
-    };
-    const initialState = mapDefToAreaState(enrichedMap);
-    loadArea(areaId, initialState);
+    const enriched = await enrichWithImages(getRoomDef(mapId));
+    loadArea(areaId, mapDefToAreaState(enriched));
   }
 
   return areaId;
 }
 
-/** Legacy constants kept for backward compat */
-export const TOWN_SQUARE_DEF_ID = 1;
+/** Returns the area_id for a map, using the cache then falling back to DB. Returns undefined if no area row exists. */
+export async function findAreaId(mapId: string): Promise<number | undefined> {
+  const cached = areaIdCache.get(mapId);
+  if (cached !== undefined) return cached;
+  const areaDefId = await resolveAreaDefId(mapId).catch(() => undefined);
+  if (areaDefId === undefined) return undefined;
+  const row = await getPersistentArea(areaDefId);
+  return row?.area_id;
+}
+
 export const TOWN_SQUARE_MAP_ID = 'town_square';

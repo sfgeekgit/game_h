@@ -124,6 +124,14 @@ export async function getAreaDefById(areaDefId: number): Promise<AreaDefRow | nu
   return rows[0] || null;
 }
 
+export async function getAreaDefByMapId(mapId: string): Promise<AreaDefRow | null> {
+  const rows = await query<AreaDefRow[]>(
+    'SELECT * FROM area_defs WHERE map_id = ?',
+    [mapId],
+  );
+  return rows[0] || null;
+}
+
 /** Find the single persistent area instance for a given area_def, or null if none exists. */
 export async function getPersistentArea(areaDefId: number): Promise<AreaRow | null> {
   const rows = await query<AreaRow[]>(

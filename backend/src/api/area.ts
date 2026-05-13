@@ -5,19 +5,17 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { applyMove } from '@game_h/shared';
-import type { Direction, Entity } from '@game_h/shared';
-import {
-  getOrCreatePersistentArea,
-  getMapDef,
-  MAP_AREA_DEF_IDS,
-} from '../area/manager.js';
-import { getNpcImages } from '../db/helpers.js';
-import { withAreaLock, readAreaState, findPlayerEntity } from '../area/store.js';
+import type { Direction, Entity, MapDef } from '@game_h/shared';
+import { getOrCreateRoom, getRoomDef, enrichWithImages, findAreaId } from '../area/manager.js';
 import { updatePlayerPosition } from '../db/helpers.js';
+import { withAreaLock, readAreaState, findPlayerEntity } from '../area/store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const NPC_DIR = join(__dirname, '../../../text_content/npcs');
 const FALLBACKS_PATH = join(__dirname, '../../../text_content/dialogue_fallbacks.yaml');
+
+// Read once at startup; fallbacks never change at runtime.
+const fallbacksPromise = readFile(FALLBACKS_PATH, 'utf-8').then((c) => yaml.load(c));
 
 const router = Router();
 
@@ -31,14 +29,7 @@ const VALID_DIRECTIONS = new Set<string>(['north', 'south', 'east', 'west']);
 router.get('/map', async (req: Request, res: Response) => {
   const mapId = (req.query.mapId as string) || 'town_square';
   try {
-    const map = getMapDef(mapId);
-    const npcFiles = (map.npcs ?? []).map((npc) => npc.dialogueFile);
-    const imageMap = await getNpcImages(npcFiles);
-    const enrichedMap = {
-      ...map,
-      npcs: (map.npcs ?? []).map((npc) => ({ ...npc, image: imageMap[npc.dialogueFile] })),
-    };
-    res.json(enrichedMap);
+    res.json(await enrichWithImages(getRoomDef(mapId)));
   } catch {
     res.status(404).json({ error: `Map not found: ${mapId}` });
   }
@@ -58,16 +49,15 @@ router.post('/join', async (req: Request, res: Response) => {
     }
 
     const mapId = (req.body.mapId as string) || 'town_square';
-    const areaDefId = MAP_AREA_DEF_IDS[mapId];
-    if (!areaDefId) {
+    let room: MapDef;
+    try {
+      room = getRoomDef(mapId);
+    } catch {
       res.status(400).json({ error: `Unknown map: ${mapId}` });
       return;
     }
 
-    const areaId = await getOrCreatePersistentArea(areaDefId, mapId);
-    const map = getMapDef(mapId);
-    const spawnX = map.spawnX;
-    const spawnY = map.spawnY;
+    const areaId = await getOrCreateRoom(mapId);
 
     await withAreaLock(areaId, (state) => {
       const existing = state.entities.find((e) => e.id === String(userId) && e.type === 'player');
@@ -75,8 +65,8 @@ router.post('/join', async (req: Request, res: Response) => {
         const playerEntity: Entity = {
           id: String(userId),
           type: 'player',
-          x: spawnX,
-          y: spawnY,
+          x: room.spawnX,
+          y: room.spawnY,
           facing: 'south',
         };
         state.entities.push(playerEntity);
@@ -208,10 +198,9 @@ router.post('/exit', async (req: Request, res: Response) => {
       return;
     }
 
-    // Validate coords are within map bounds
-    let map;
+    let map: MapDef;
     try {
-      map = getMapDef(mapId);
+      map = getRoomDef(mapId);
     } catch {
       res.status(400).json({ error: 'Unknown map' });
       return;
@@ -221,14 +210,8 @@ router.post('/exit', async (req: Request, res: Response) => {
       return;
     }
 
-    const areaDefId = MAP_AREA_DEF_IDS[mapId];
-    if (areaDefId) {
-      const areaRow = await (await import('../db/helpers.js')).getPersistentArea(areaDefId);
-      const areaId = areaRow?.area_id ?? 0;
-      if (areaId) {
-        await updatePlayerPosition(userId, areaId, x, y);
-      }
-    }
+    const areaId = await findAreaId(mapId);
+    if (areaId) await updatePlayerPosition(userId, areaId, x, y);
 
     res.json({ success: true });
   } catch (err) {
@@ -251,12 +234,10 @@ router.get('/npc/:npcId/dialogue', async (req: Request, res: Response) => {
     }
 
     const npcPath = join(NPC_DIR, `${npcId}.yaml`);
-    const [npcContent, fallbacksContent] = await Promise.all([
-      readFile(npcPath, 'utf-8'),
-      readFile(FALLBACKS_PATH, 'utf-8'),
+    const [npcData, fallbacks] = await Promise.all([
+      readFile(npcPath, 'utf-8').then((c) => yaml.load(c)),
+      fallbacksPromise,
     ]);
-    const npcData = yaml.load(npcContent);
-    const fallbacks = yaml.load(fallbacksContent);
 
     res.json({ npcData, fallbacks });
   } catch (err: unknown) {
